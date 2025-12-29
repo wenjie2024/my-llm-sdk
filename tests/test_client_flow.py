@@ -11,13 +11,16 @@ def mock_loader():
     with patch('src.client.load_config') as mock:
         # valid config
         p_def = ModelDefinition(name="test-model", provider="echo", model_id="echo-v1")
+        from src.config.models import ResilienceConfig
         config = MergedConfig(
             final_routing_policies=[],
             final_model_registry={"test-model": p_def},
             final_endpoints=[],
             allow_logging=True,
             daily_spend_limit=1.0,
-            api_keys={"echo": "secret"}
+            api_keys={"echo": "secret"},
+            resilience=ResilienceConfig(),
+            budget_strict_mode=True
         )
         mock.return_value = config
         yield mock

@@ -23,6 +23,14 @@ class Endpoint(BaseModel):
     region: str
     is_active: bool = True
 
+class ResilienceConfig(BaseModel):
+    max_retries: int = 3
+    base_delay_s: float = 1.0
+    max_delay_s: float = 60.0
+    wait_on_rate_limit: bool = True
+    
+    # Circuit Breaker defaults can go here too if needed
+    
 class ProjectConfig(BaseModel):
     """Configuration loaded from project root (Git tracked)."""
     project_name: str
@@ -33,6 +41,9 @@ class ProjectConfig(BaseModel):
     # Policies
     allow_logging: bool = False
     budget_strict_mode: bool = True
+    
+    # Resilience
+    resilience: ResilienceConfig = Field(default_factory=ResilienceConfig)
 
 class UserConfig(BaseModel):
     """Configuration loaded from user home (Local only)."""
@@ -52,5 +63,9 @@ class MergedConfig(BaseModel):
     
     # Merged Flags
     allow_logging: bool
+    budget_strict_mode: bool
     daily_spend_limit: float
     api_keys: Dict[str, str]
+    
+    # Resilience
+    resilience: ResilienceConfig

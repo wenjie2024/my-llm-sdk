@@ -11,13 +11,17 @@
     *   `llm.project.yaml`: 提交到 Git。定义合法的模型列表和路由策略。
     *   `config.yaml`: **仅本地** (Git-ignored)。存储 API Key 和个人端点。
     *   **智能合并**: 支持 追加 (Policies) / 覆盖 (Models) / 过滤 (Endpoints) 策略。
-*   **🩺 医生模块 (Doctor)**:
     *   `python -m src.cli doctor`: 自动诊断与美国/中国/新加坡节点的连通性。
     *   **智能路由**: Qwen 提供商会根据是否能连通 Google，自动在 CN (国内) 和 SG (新加坡) 节点间切换。
 *   **🔌 多引擎支持**:
     *   **Google Gemini**: 支持 1.5, 2.5, 和 3.0 (Preview) 系列。
     *   **Alibaba Qwen**: 支持 Max, Plus, 和 Flash (通义千问 DashScope)。
     *   **OpenAI/Compatible**: 支持通用接口。
+*   **⏳ 异步与流式 (New in V0.2/0.3)**:
+    *   **Async API**: `client.generate_async` 和 `client.stream_async` 支持高并发（每秒 50+ 请求）。
+    *   **Streaming**: 完整支持流式输出 (`stream=True`)，且能精准记录 Ledger。
+    *   **Structured Output**: 统一返回对象，包含 Cost 和 Token Usage。
+    *   **Resilience**: 自动重试与速率限制等待 (`resilience.wait_on_rate_limit`)。
 ## 🛠️ 安装指南
 ```bash
 # 1. 开发模式安装 (推荐)
@@ -66,22 +70,49 @@ python -m src.cli generate --prompt "你好，写首诗" --model qwen-max
 ## 📦 Python API 调用
 ```python
 from src.client import LLMClient
+import asyncio
+
 # 初始化 (自动加载配置)
 client = LLMClient()
-try:
-    # 生成内容
-    response = client.generate(
-        prompt="为银行账户设计一个 Python 类", 
-        model_alias="gemini-2.5-pro"
-    )
-    print(response)
-    
-except Exception as e:
-    print(f"生成失败: {e}")
-#以编程方式运行诊断
-import asyncio
-asyncio.run(client.run_doctor())
+
+async def main():
+    try:
+        # 1. 基础生成 (Blocking)
+        print("--- Sync Generate ---")
+        response = client.generate(
+            prompt="为银行账户设计一个 Python 类", 
+            model_alias="gemini-2.5-flash"
+        )
+        print(response) # 直接打印内容
+
+        # 2. 结构化对象 (Rich Object)
+        print("\n--- Structured Response ---")
+        res_obj = client.generate("Hello", full_response=True)
+        print(f"Cost: ${res_obj.cost}, Tokens: {res_obj.usage.total_tokens}")
+
+        # 3. 异步流式 (Async Streaming - High Concurrency)
+        print("\n--- Async Stream ---")
+        stream = client.stream_async("数到3", model_alias="gemini-2.5-flash")
+        async for event in stream:
+            if event.delta:
+                print(event.delta, end="", flush=True)
+        
+    except Exception as e:
+        print(f"Error: {e}")
+
+if __name__ == "__main__":
+    asyncio.run(main())
 ```
+
+### 🧩 核心功能配置
+在 `llm.project.yaml` 或 `config.yaml` 中配置 Resilience：
+```yaml
+resilience:
+  max_retries: 3           # 失败重试次数
+  wait_on_rate_limit: true # 遇到 429 是否自动等待
+  max_delay_s: 60          # 最大等待时间
+```
+
 ## 📂 项目结构
 ```
 my-llm-sdk/

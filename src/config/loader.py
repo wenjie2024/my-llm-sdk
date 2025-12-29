@@ -61,8 +61,10 @@ def merge_configs(project: ProjectConfig, user: UserConfig) -> MergedConfig:
         final_model_registry=final_models,
         final_endpoints=final_endpoints,
         allow_logging=project.allow_logging,
+        budget_strict_mode=project.budget_strict_mode,
         daily_spend_limit=user.daily_spend_limit,
-        api_keys=user.api_keys
+        api_keys=user.api_keys,
+        resilience=project.resilience
     )
 
 def load_config(project_path: str = "llm.project.yaml", user_path: str = "~/.config/llm-sdk/config.yaml") -> MergedConfig:

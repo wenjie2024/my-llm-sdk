@@ -11,13 +11,16 @@ def get_mock_config():
         Endpoint(name="google", url="https://google.com", region="us"),
         Endpoint(name="bad-host", url="https://bad.host", region="us"),
     ]
+    from src.config.models import ResilienceConfig
     return MergedConfig(
         final_routing_policies=[],
         final_model_registry={},
         final_endpoints=endpoints,
         allow_logging=True,
         daily_spend_limit=1.0,
-        api_keys={}
+        api_keys={},
+        resilience=ResilienceConfig(),
+        budget_strict_mode=True
     )
 
 @pytest.fixture

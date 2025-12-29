@@ -8,13 +8,16 @@ from src.config.models import MergedConfig, Endpoint, RoutingPolicy
 
 # Mock Config
 def get_mock_config(limit: float):
+    from src.config.models import ResilienceConfig
     return MergedConfig(
         final_routing_policies=[],
         final_model_registry={},
         final_endpoints=[],
         allow_logging=True,
         daily_spend_limit=limit,
-        api_keys={}
+        api_keys={},
+        resilience=ResilienceConfig(),
+        budget_strict_mode=True
     )
 
 @pytest.fixture
