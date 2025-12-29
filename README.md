@@ -20,11 +20,19 @@ A robust, enterprise-grade Python SDK for LLM interactions. Designed with strict
     *   **OpenAI/Compatible**: Generic interface support.
 ## 🛠️ Installation
 ```bash
-# 1. Install dependencies (Editable Mode Recommended)
+# 1. Dev Install (Recommended)
+# From the root of this project:
 pip install -e .
 
-# Or manually:
-pip install pyyaml pydantic httpx google-generativeai dashscope
+# 2. Install in Another Project (Local Path)
+# To use this SDK in a different project:
+pip install -e /path/to/documents/my-llm-sdk
+
+# 3. Production Install (Wheel)
+# Build and install the .whl
+pip install build
+python -m build
+pip install dist/my_llm_sdk-0.1.0-py3-none-any.whl
 ```
 ## ⚡ Quick Start
 ### 1. Configure Credentials

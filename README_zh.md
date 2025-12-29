@@ -20,11 +20,19 @@
     *   **OpenAI/Compatible**: 支持通用接口。
 ## 🛠️ 安装指南
 ```bash
-# 1. 安装依赖 (推荐使用开发模式)
+# 1. 开发模式安装 (推荐)
+# 如果你在本项目根目录下:
 pip install -e .
 
-# 或者手动安装依赖:
-pip install pyyaml pydantic httpx google-generativeai dashscope
+# 2. 在其他项目中引用 (Local Path)
+# 如果你想在另一个项目中使用本 SDK:
+pip install -e /path/to/documents/my-llm-sdk
+
+# 3. 打包安装 (Production)
+# 生成 .whl 文件并安装
+pip install build
+python -m build
+pip install dist/my_llm_sdk-0.1.0-py3-none-any.whl
 ```
 ## ⚡ 快速上手
 ### 1. 配置凭证
