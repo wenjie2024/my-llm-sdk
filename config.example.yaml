@@ -1,0 +1,19 @@
+# User's local credentials
+api_keys:
+  openai: "sk-mock-key-12345"
+  echo: "echo-key-999"
+  # google: "YOUR_GEMINI_API_KEY"
+  # dashscope: "YOUR_DASHSCOPE_API_KEY"
+
+# User's Endpoints
+endpoints:
+  - name: "official-api"
+    url: "https://api.openai.com/v1"
+    region: "us"
+  
+  - name: "local-proxy"
+    url: "http://localhost:8080"
+    region: "local"
+
+# Personal Budget
+daily_spend_limit: 5.0
