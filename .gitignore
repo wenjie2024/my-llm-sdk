@@ -12,4 +12,13 @@ ledger.db-wal
 __pycache__/
 *.py[cod]
 *.so
+# Build Artifacts
+dist/
+build/
+*.egg-info/
+
+# OS Files
+.DS_Store
+
+# Pytest
 .pytest_cache/

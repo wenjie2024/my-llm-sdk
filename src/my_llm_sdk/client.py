@@ -1,4 +1,5 @@
 import asyncio
+import os
 from typing import Optional, Dict
 from my_llm_sdk.config.loader import load_config
 from my_llm_sdk.budget.controller import BudgetController
@@ -8,13 +9,20 @@ from my_llm_sdk.doctor.report import print_report
 from my_llm_sdk.providers.base import BaseProvider, EchoProvider
 from my_llm_sdk.providers.gemini import GeminiProvider
 from my_llm_sdk.providers.qwen import QwenProvider
+from my_llm_sdk.config.exceptions import ConfigurationError
 
 class LLMClient:
     def __init__(self, project_config_path: str = None, user_config_path: str = None):
         # 1. Load Config
-        # In real usage, might default paths or traverse up
+        # Priority: explicit path > ./config.yaml > ~/.config/llm-sdk/config.yaml
         p_path = project_config_path or "llm.project.yaml"
-        u_path = user_config_path or "~/.config/llm-sdk/config.yaml"
+        
+        if user_config_path:
+            u_path = user_config_path
+        elif os.path.exists("config.yaml"):
+            u_path = "config.yaml"  # CWD first
+        else:
+            u_path = "~/.config/llm-sdk/config.yaml"  # Fallback
         
         self.config = load_config(p_path, u_path)
         
@@ -61,6 +69,14 @@ class LLMClient:
         provider_instance = self.providers.get(provider_name)
         if not provider_instance:
             provider_instance = EchoProvider()
+        
+        # 1.5. Validate API Key (Early fail with clear error)
+        api_key = self.config.api_keys.get(provider_name)
+        if not api_key and provider_name not in ["echo"]:
+            raise ConfigurationError(
+                f"Missing API key for provider '{provider_name}'. "
+                f"Please add 'api_keys.{provider_name}' to your config.yaml."
+            )
             
         # 2. Pre-check Budget & Rate Limits
         # Estimate cost & tokens
@@ -85,7 +101,6 @@ class LLMClient:
         response_obj = None
         status = 'success'
         try:
-            api_key = self.config.api_keys.get(provider_name)
             
             # Wrap generation with Retry Policy
             # Note: We want to retry the provider call, not the whole generate method (which re-checks budget)
