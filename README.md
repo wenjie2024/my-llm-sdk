@@ -1,127 +1,186 @@
-# My LLM SDK (Production Ready)
-A robust, enterprise-grade Python SDK for LLM interactions. Designed with strict **Budget Control**, **Dual-Layer Configuration**, and **Self-Diagnostics**.
-> **Status**: Active Development
-> **Features**: Multi-Provider (OpenAI, Gemini, Qwen), SQLite Budget Ledger, Network Doctor, Dynamic Endpoint Switching.
-## 🚀 Key Features
-*   **🛡️ Budget Control**:
-    *   **Pre-check**: Prevents requests *before* they happen if daily limit is exceeded.
-    *   **Ledger**: Local `sqlite3` (WAL mode) records every transaction with high concurrency support.
-    *   **Dynamic Pricing**: Real-time pricing estimation for Qwen-Max, Gemini 3.0, etc.
-*   **⚙️ Dual-Layer Config**:
-    *   `llm.project.yaml`: Committed to Git. Defines valid models and routing policies.
-    *   `config.yaml`: **Local only** (Git-ignored). Stores API keys and personal endpoints.
-    *   **Smart Merge**: Append (Policies) / Overlay (Models) / Filter (Endpoints).
-*   **🩺 Doctor Module**:
-    *   `python -m my_llm_sdk.cli doctor`: Auto-diagnose connectivity. to US/CN/SG endpoints.
-    *   **Smart Routing**: Qwen provider automatically switches between CN/SG endpoints based on Google connectivity checks.
-*   **🔌 Multi-Engine Support**:
-    *   **Google Gemini**: Supports 1.5, 2.5, and 3.0 (Preview) series.
-    *   **Alibaba Qwen**: Supports Max, Plus, and Flash (DashScope).
-    *   **OpenAI/Compatible**: Generic interface support.
-## 🛠️ Installation
+[English](README_en.md) | **中文**
+
+[![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
+
+# My LLM SDK (生产级)
+一个健壮的、企业级的 Python LLM 交互 SDK。设计时严格遵循 **预算控制**、**双层配置** 和 **自我诊断** 原则。
+> **状态**: 活跃开发中
+> **特性**: 多供应商支持 (OpenAI, Gemini, Qwen), SQLite 预算账本, 网络医生, 动态节点切换。
+## 🚀 核心特性
+*   **🛡️ 预算控制**:
+    *   **预检 (Pre-check)**: 如果超出每日限额，会在请求发生*之前*进行拦截。
+    *   **账本 (Ledger)**: 本地 `sqlite3` (WAL 模式) 记录每一笔交易，支持高并发。
+    *   **动态定价**: 实时估算 Qwen-Max, Gemini 3.0 等模型的费用。
+*   **⚙️ 双层配置架构**:
+    *   `llm.project.yaml`: 提交到 Git。定义合法的模型列表和路由策略。
+    *   `config.yaml`: **仅本地** (Git-ignored)。存储 API Key 和个人端点。
+    *   **智能合并**: 支持 追加 (Policies) / 覆盖 (Models) / 过滤 (Endpoints) 策略。
+    *   `python -m my_llm_sdk.cli doctor`: 自动诊断与美国/中国/新加坡节点的连通性。
+    *   **智能路由**: Qwen 提供商会根据是否能连通 Google，自动在 CN (国内) 和 SG (新加坡) 节点间切换。
+*   **🔌 多引擎支持**:
+    *   **Google Gemini**: 支持 1.5, 2.5, 和 3.0 (Preview) 系列。
+    *   **Alibaba Qwen**: 支持 Max, Plus, 和 Flash (通义千问 DashScope)。
+    *   **OpenAI/Compatible**: 支持通用接口。
+*   **⏳ 异步与流式 (New in V0.2/0.3)**:
+    *   **Async API**: `client.generate_async` 和 `client.stream_async` 支持高并发（每秒 50+ 请求）。
+    *   **Streaming**: 完整支持流式输出 (`stream=True`)，且能精准记录 Ledger。
+    *   **Structured Output**: 统一返回对象，包含 Cost 和 Token Usage。
+    *   **Resilience**: 自动重试与速率限制等待 (`resilience.wait_on_rate_limit`)。
+## 🛠️ 安装指南
 ```bash
-# 1. Dev Install (Recommended)
-# From the root of this project:
+# 1. 开发模式安装 (推荐)
+# 如果你在本项目根目录下:
 pip install -e .
 
-# 2. Install in Another Project (Local Path)
-# To use this SDK in a different project:
+# 2. 在其他项目中引用 (Local Path)
+# 如果你想在另一个项目中使用本 SDK:
 pip install -e /path/to/documents/my-llm-sdk
 
-# 3. Production Install (Wheel)
-# Build and install the .whl
+# 3. 打包安装 (Production)
+# 生成 .whl 文件并安装
 pip install build
 python -m build
 pip install dist/my_llm_sdk-0.1.0-py3-none-any.whl
 ```
-## ⚡ Quick Start
-### 1. Initialize Config
-Run the following command in your project root:
+## ⚡ 快速上手
+### 1. 初始化配置 (Initialize Config)
+在你的项目根目录下运行：
 ```bash
 python -m my_llm_sdk.cli init
 ```
-This generates:
-*   `llm.project.yaml`: Project rules (Commit this).
-*   `config.yaml`: Local secrets template (Add to **.gitignore**).
+这将自动生成：
+*   `llm.project.yaml`: 项目级模型规则 (建议提交到 Git)。
+*   `config.yaml`: 包含 API Key 的模板 (请编辑并**加入 .gitignore**)。
 
-### 2. Configure Keys
-Edit `config.yaml` and add your API keys:
+### 2. 填入密钥 (Setup Keys)
+编辑 `config.yaml`，填入 API Key：
 ```yaml
 api_keys:
   google: "AIzaSy..."
+  dashscope: "sk-..."
+  openai: "sk-..."
+daily_spend_limit: 5.0
 ```
 
-### 3. Run Diagnostics (Doctor)
-Check connection and keys:
+### 3. 运行诊断 (Doctor)
+检查网络和 Key 是否配置正确：
 ```bash
-python -m my_llm_sdk.cli doctor
+python -m src.cli doctor
 ```
-### 3. Generate Text (CLI)
-**Using Gemini 2.5:**
+
+## 🔧 进阶配置 (Advanced Config)
+`config.yaml` 不仅仅用于存储密钥，还支持**本地覆盖**（不会影响团队共享配置）：
+
+### 1. 本地模型定义 (personal_model_overrides)
+定义仅本地可见的模型（如 Ollama 或临时测试模型）：
+```yaml
+personal_model_overrides:
+  llama-3-local:
+    provider: "openai" # 兼容协议
+    model_id: "llama3"
+    api_base: "http://localhost:11434/v1"
+    rpm: 9999
+```
+
+### 2. 本地路由策略 (personal_routing_policies)
+定义本地优先的路由规则：
+```yaml
+personal_routing_policies:
+  - name: "debug-local-first"
+    strategy: "priority"
+    params:
+      priority_list: "llama-3-local,gpt-4"
+```
+这样你就可以在不修改 `llm.project.yaml` 的情况下，强制 SDK 优先使用本地模型进行调试。
+### 3. 生成文本 (CLI)
+**使用 Gemini 2.5:**
 ```bash
-python -m my_llm_sdk.cli generate --prompt "Explain Quantum Mechanics" --model gemini-2.5-flash
+python -m my_llm_sdk.cli generate --prompt "解释量子力学" --model gemini-2.5-flash
 ```
-**Using Qwen Max:**
+**使用 Qwen Max:**
 ```bash
-python -m my_llm_sdk.cli generate --prompt "Write a poem" --model qwen-max
+python -m my_llm_sdk.cli generate --prompt "你好，写首诗" --model qwen-max
 ```
-## 📦 Python API Usage
+## 📦 Python API 调用
 ```python
 from my_llm_sdk.client import LLMClient
-# Initialize (loads config automatically)
-client = LLMClient()
-try:
-    # Generate content
-    response = client.generate(
-        prompt="Design a Python class for a Bank Account", 
-        model_alias="gemini-2.5-pro"
-    )
-    print(response)
-    
-except Exception as e:
-    print(f"Generation failed: {e}")
-# Check Diagnostics programmatically
 import asyncio
-asyncio.run(client.run_doctor())
+
+# 初始化 (自动加载配置)
+client = LLMClient()
+
+async def main():
+    try:
+        # 1. 基础生成 (Blocking)
+        print("--- Sync Generate ---")
+        response = client.generate(
+            prompt="为银行账户设计一个 Python 类", 
+            model_alias="gemini-2.5-flash"
+        )
+        print(response) # 直接打印内容
+
+        # 2. 结构化对象 (Rich Object)
+        print("\n--- Structured Response ---")
+        res_obj = client.generate("Hello", full_response=True)
+        print(f"Cost: ${res_obj.cost}, Tokens: {res_obj.usage.total_tokens}")
+
+        # 3. 异步流式 (Async Streaming - High Concurrency)
+        print("\n--- Async Stream ---")
+        stream = client.stream_async("数到3", model_alias="gemini-2.5-flash")
+        async for event in stream:
+            if event.delta:
+                print(event.delta, end="", flush=True)
+        
+    except Exception as e:
+        print(f"Error: {e}")
+
+if __name__ == "__main__":
+    asyncio.run(main())
 ```
-## 📂 Project Structure
+
+### 🧩 核心功能配置
+在 `llm.project.yaml` 或 `config.yaml` 中配置 Resilience：
+```yaml
+resilience:
+  max_retries: 3           # 失败重试次数
+  wait_on_rate_limit: true # 遇到 429 是否自动等待
+  max_delay_s: 60          # 最大等待时间
+```
+
+## 📂 项目结构
 ```
 my-llm-sdk/
 │   └── my_llm_sdk/     # Python Package
-│       ├── budget/     # Budget Control & Pricing Logic
-│       ├── config/     # Config Loader & Pydantic Models
-│       ├── doctor/     # Connectivity & Health Checks
-│       ├── providers/  # Adapters (Gemini, Qwen, Echo)
-│       ├── utils/      # Network utils
-│       ├── client.py   # Main Entry Point
-│       └── cli.py      # Command Line Interface
-├── tests/              # Pytest Suite
-├── config.yaml         # Local Secrets (Ignored)
-├── llm.project.yaml    # Project Rules (Committed)
-└── ledger.db           # Local Transaction Log
+│       ├── budget/     # ...
+│       ├── client.py   # ...
+│       └── ...
+├── tests/              # Pytest 测试套件
+├── config.yaml         # 本地密钥 (已忽略)
+├── llm.project.yaml    # 项目规则 (已提交)
+└── ledger.db           # 本地交易日志
 ```
-## 📝 Configuration Reference
+## 📝 配置参考
 ### llm.project.yaml
-Defines the **Model Registry** (aliases mapping to real Model IDs) and **Allowed Regions**.
+定义 **模型注册表 (Model Registry)** (别名映射到真实 Model ID) 和 **允许的区域 (Allowed Regions)**。
 ### config.yaml
-Defines **API Keys** and **Endpoints**. By default, Qwen endpoints connect to CN, but flexible routing is supported.
+定义 **API Keys** 和 **Endpoints**。默认情况下，Qwen 端点连接到 CN，但支持灵活路由。
 
-## 📊 Benchmark Results (Dec 2025)
+## 📊 性能基准测试 (2025-12)
 
-Based on `tests/benchmark.py` (Simple: General Knowledge, Complex: Multithreaded Crawler Coding):
+基于 `tests/benchmark.py` 的实测数据（Simple:常识问答, Complex:多线程爬虫代码生成）：
 
-| Model | Simple Time | Complex Time | Complex Length | Key Characteristic |
+| 模型 (Model) | 简单任务耗时 | 复杂任务耗时 | 复杂回答长度 | 特点 |
 | :--- | :--- | :--- | :--- | :--- |
-| **qwen-flash** | **3.70s** | 48.53s | **11414 c** | **Fastest & Most Verbose** |
-| **qwen-plus** | 3.95s | 33.15s | 7968 c | Extremely fast for simple tasks |
-| **gemini-3.0-flash** | 4.49s | **14.85s** | 5403 c | **Fastest for Complex Tasks** |
-| **gemini-2.5-pro** | 16.47s | 53.80s | 9988 c | Deep reasoning, detailed output |
-| **qwen-max** | 9.75s | 31.36s | 3822 c | Concise interactions |
+| **qwen-flash** | **3.70s** | 48.53s | **11414 c** | **响应最快且内容最丰富** |
+| **qwen-plus** | 3.95s | 33.15s | 7968 c | 简单任务极快 (3.9s) |
+| **gemini-3.0-flash** | 4.49s | **14.85s** | 5403 c | **复杂任务处理速度最快** |
+| **gemini-2.5-pro** | 16.47s | 53.80s | 9988 c | 深度思考，内容详实 |
+| **qwen-max** | 9.75s | 31.36s | 3822 c | 回答精炼 |
 
-> *Note: Latency depends on local network conditions.*
+> *注：测试环境取决于本地网络状况，数据仅供参考。*
 
-## 🤝 Contributing
-1.  Fork the repo.
-2.  Add a new Provider in `src/providers/`.
-3.  Register it in `src/client.py`.
-4.  Submit a PR!
+## 🤝 贡献
+1.  Fork 本仓库。
+2.  在 `src/my_llm_sdk/providers/` 中添加新的 Provider。
+3.  在 `src/my_llm_sdk/client.py` 中注册它。
+4.  提交 PR!
