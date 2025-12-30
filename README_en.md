@@ -4,22 +4,19 @@
 
 # My LLM SDK
 
-A Python SDK for calling multiple LLM APIs (Gemini, Qwen, OpenAI).
+**One codebase, multiple models.**
 
-## 😰 Pain Points
-- **Runaway costs**: Forgot to add limits, woke up to a $200 bill.
-- **Config mess**: API keys mixed with project settings, accidentally committed to Git.
-- **Unreliable networks**: Timeouts and 429s when calling Gemini from China.
+A unified Python SDK for Gemini, Qwen, OpenAI, and more. Single API interface for all providers.
 
-## ✅ Solutions
-- **Budget guard**: Pre-checks daily spend before every request. Blocks if over limit.
-- **Two-layer config**: Project rules (Git) separated from API keys (local only).
-- **Auto-retry**: Handles timeouts and 429s automatically. Qwen switches between CN/SG endpoints.
+## 🎯 Core Features
 
-## 🔌 Supported Models
-- **Google Gemini**: 2.5/3.0 Flash, 2.5/3.0 Pro
-- **Alibaba Qwen**: Max, Plus, Flash
-- **OpenAI/Compatible**: Generic interface
+| Feature | Description |
+| :--- | :--- |
+| **Unified API** | One `client.generate()` for all providers. No need to learn each SDK. |
+| **Multi-model** | Gemini 2.5/3.0, Qwen Max/Plus/Flash, OpenAI Compatible |
+| **Budget Control** | Pre-checks spend before each request. Auto-blocks if over limit. |
+| **Auto-retry** | Handles 429 and timeouts automatically. |
+| **Two-layer Config** | Project rules vs API keys separated. Prevents accidental commits. |
 *   **🔌 Multi-Engine Support**:
     *   **Google Gemini**: Supports 1.5, 2.5, and 3.0 (Preview) series.
     *   **Alibaba Qwen**: Supports Max, Plus, and Flash (DashScope).

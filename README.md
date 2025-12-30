@@ -4,22 +4,19 @@
 
 # My LLM SDK
 
-一个 Python SDK，用于调用多家 LLM API（Gemini、Qwen、OpenAI）。
+**一套代码，调用多家模型。**
 
-## 😰 痛点
-- **怕忘关循环导致账单爆炸**：调用没限制，跑完发现花了几百块。
-- **配置混乱**：API Key 和项目设置混在一起，容易误提交到 Git。
-- **网络不稳**：国内访问 Gemini 时不时超时或被 429。
+统一的 Python SDK，支持 Gemini、Qwen、OpenAI 等多家 LLM，提供一致的 API 接口。
 
-## ✅ 解决方案
-- **预算拦截**：每次请求前检查当日消费，超额直接拒绝，不请求 API。
-- **双层配置**：项目规则（Git 提交）与 API Key（本地保留）分离。
-- **自动重试**：遇到超时或 429 自动等待重试，支持 Qwen 国内/海外节点切换。
+## 🎯 核心功能
 
-## 🔌 支持的模型
-- **Google Gemini**: 2.5/3.0 Flash, 2.5/3.0 Pro
-- **Alibaba Qwen**: Max, Plus, Flash (通义千问)
-- **OpenAI/Compatible**: 通用接口
+| 功能 | 说明 |
+| :--- | :--- |
+| **统一接口** | 一套 `client.generate()` 调用所有厂商，无需学习不同 SDK |
+| **多模型支持** | Gemini 2.5/3.0, Qwen Max/Plus/Flash, OpenAI Compatible |
+| **预算控制** | 每次请求前检查消费，超额自动拒绝 |
+| **自动重试** | 遇到 429/超时自动等待重试 |
+| **双层配置** | 项目规则 vs API Key 分离，防止误提交 |
 *   **⏳ 异步与流式 (New in V0.2/0.3)**:
     *   **Async API**: `client.generate_async` 和 `client.stream_async` 支持高并发（每秒 50+ 请求）。
     *   **Streaming**: 完整支持流式输出 (`stream=True`)，且能精准记录 Ledger。
