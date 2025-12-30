@@ -3,7 +3,7 @@ A robust, enterprise-grade Python SDK for LLM interactions. Designed with strict
 > **Status**: Active Development
 > **Features**: Multi-Provider (OpenAI, Gemini, Qwen), SQLite Budget Ledger, Network Doctor, Dynamic Endpoint Switching.
 ## 🚀 Key Features
-*   **🛡️ Budget Guard (预算卫士)**:
+*   **🛡️ Budget Control**:
     *   **Pre-check**: Prevents requests *before* they happen if daily limit is exceeded.
     *   **Ledger**: Local `sqlite3` (WAL mode) records every transaction with high concurrency support.
     *   **Dynamic Pricing**: Real-time pricing estimation for Qwen-Max, Gemini 3.0, etc.
