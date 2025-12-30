@@ -22,3 +22,11 @@ build/
 
 # Pytest
 .pytest_cache/
+
+# Development Only (Internal)
+plan/
+docs/
+verify_*.py
+benchmark.py
+GEMINI.md
+ROADMAP.md
