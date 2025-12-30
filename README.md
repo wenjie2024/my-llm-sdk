@@ -19,7 +19,9 @@
 
 ```bash
 # 1. 安装（从本地路径，未来支持 pip install my-llm-sdk）
-pip install -e /path/to/my-llm-sdk
+pip install -e <SDK路径>/my-llm-sdk
+# 例: pip install -e ~/projects/my-llm-sdk      (macOS/Linux)
+#     pip install -e C:\Users\你\my-llm-sdk     (Windows)
 
 # 2. 在你的项目目录下初始化配置
 python -m my_llm_sdk.cli init

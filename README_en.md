@@ -19,7 +19,9 @@
 
 ```bash
 # 1. Install (from local path, future: pip install my-llm-sdk)
-pip install -e /path/to/my-llm-sdk
+pip install -e <path-to-sdk>/my-llm-sdk
+# e.g. pip install -e ~/projects/my-llm-sdk      (macOS/Linux)
+#      pip install -e C:\Users\you\my-llm-sdk    (Windows)
 
 # 2. Initialize config in your project directory
 python -m my_llm_sdk.cli init
