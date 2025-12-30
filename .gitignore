@@ -1,0 +1,24 @@
+# User configuration (Secrets)
+config.yaml
+.env
+
+# Runtime Data
+ledger.db
+ledger.db-shm
+ledger.db-wal
+.cache/
+
+# Python
+__pycache__/
+*.py[cod]
+*.so
+# Build Artifacts
+dist/
+build/
+*.egg-info/
+
+# OS Files
+.DS_Store
+
+# Pytest
+.pytest_cache/

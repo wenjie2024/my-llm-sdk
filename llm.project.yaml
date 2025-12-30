@@ -1,0 +1,68 @@
+project_name: vibe-sdk-demo
+routing_policies:
+- name: enterprise-compliant
+  strategy: priority
+  params:
+    priority_list: azure,openai
+model_registry:
+  gpt-4:
+    name: gpt-4
+    provider: echo
+    model_id: echo-gpt-4-turbo
+  gemini-2.5-flash:
+    name: gemini-2.5-flash
+    provider: google
+    model_id: gemini-2.5-flash
+    rpm: 1000
+    tpm: 1000000
+  gemini-2.5-pro:
+    name: gemini-2.5-pro
+    provider: google
+    model_id: gemini-2.5-pro
+    rpm: 150
+    tpm: 2000000
+  gemini-3.0-flash:
+    name: gemini-3.0-flash
+    provider: google
+    model_id: gemini-3-flash-preview
+    rpm: 1000
+    tpm: 1000000
+  gemini-3.0-pro:
+    name: gemini-3.0-pro
+    provider: google
+    model_id: gemini-3-pro-preview
+    rpm: 25
+    tpm: 1000000
+  qwen-max:
+    name: qwen-max
+    provider: dashscope
+    model_id: qwen-max
+    rpm: 600
+    tpm: 100000
+    rpd: 2000
+  qwen-plus:
+    name: qwen-plus
+    provider: dashscope
+    model_id: qwen-plus
+    rpm: 600
+    tpm: 1000000
+  qwen-flash:
+    name: qwen-flash
+    provider: dashscope
+    model_id: qwen-flash
+    rpm: 600
+    tpm: 1000000
+  default:
+    name: default
+    provider: google
+    model_id: gemini-2.5-pro
+    rpm: 150
+    tpm: 2000000
+allowed_regions:
+- us
+- eu
+- local
+- cn
+- sg
+allow_logging: true
+budget_strict_mode: true

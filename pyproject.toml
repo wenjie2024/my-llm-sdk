@@ -1,0 +1,34 @@
+[project]
+name = "my-llm-sdk"
+version = "0.3.5"
+description = "Vibe Edition LLM SDK"
+authors = [{name = "Admin", email = "admin@example.com"}]
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "python-dotenv>=1.0.0",
+    "pydantic>=2.0.0",
+    "pyyaml>=6.0",
+    "httpx>=0.24.0",
+    "google-generativeai>=0.3.0",
+    "dashscope>=1.14.0",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.metadata]
+allow-direct-references = true
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/my_llm_sdk"]
+
+[project.scripts]
+llm-sdk = "my_llm_sdk.cli:main"
+
+[project.optional-dependencies]
+dev = [
+  "pytest",
+  "pytest-cov"
+]

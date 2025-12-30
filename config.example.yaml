@@ -1,0 +1,12 @@
+api_keys:
+  google: "YOUR_GEMINI_API_KEY"
+  dashscope: "YOUR_DASHSCOPE_API_KEY"
+  openai: "YOUR_OPENAI_API_KEY"
+
+daily_spend_limit: 1.0
+
+personal_model_overrides: {}
+
+personal_routing_policies: []
+
+endpoints: []
