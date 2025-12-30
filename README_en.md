@@ -13,14 +13,30 @@
 
 ---
 
-## 🚀 60-Second Quickstart
+## 🚀 Quickstart
+
+### Using in Your Project
 
 ```bash
+# 1. Install (from local path, future: pip install my-llm-sdk)
+pip install -e /path/to/my-llm-sdk
+
+# 2. Initialize config in your project directory
+python -m my_llm_sdk.cli init
+
+# 3. Edit config.yaml with your API keys
+
+# 4. Call
+python -m my_llm_sdk.cli generate --model gemini-2.5-flash --prompt "Hello"
+```
+
+### Contributing to SDK Development
+
+```bash
+git clone https://github.com/your-org/my-llm-sdk.git
+cd my-llm-sdk
 pip install -e .
-python -m my_llm_sdk.cli init      # Generate config files
-# Edit config.yaml with your API keys
-python -m my_llm_sdk.cli doctor    # Check connectivity
-python -m my_llm_sdk.cli generate --model gemini-2.5-flash --prompt "Explain quantum mechanics in 3 sentences"
+python -m my_llm_sdk.cli doctor
 ```
 
 ---

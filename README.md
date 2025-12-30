@@ -13,14 +13,30 @@
 
 ---
 
-## � 60 秒快速上手
+## 🚀 快速上手
+
+### 在你的项目中使用
 
 ```bash
+# 1. 安装（从本地路径，未来支持 pip install my-llm-sdk）
+pip install -e /path/to/my-llm-sdk
+
+# 2. 在你的项目目录下初始化配置
+python -m my_llm_sdk.cli init
+
+# 3. 编辑 config.yaml，填入 API Key
+
+# 4. 调用
+python -m my_llm_sdk.cli generate --model gemini-2.5-flash --prompt "你好"
+```
+
+### 参与 SDK 开发
+
+```bash
+git clone https://github.com/NoneSeniorEngineer/my-llm-sdk.git
+cd my-llm-sdk
 pip install -e .
-python -m my_llm_sdk.cli init      # 生成配置文件
-# 编辑 config.yaml，填入你的 API Key
-python -m my_llm_sdk.cli doctor    # 检查连通性
-python -m my_llm_sdk.cli generate --model gemini-2.5-flash --prompt "用三句话解释量子力学"
+python -m my_llm_sdk.cli doctor
 ```
 
 ---
