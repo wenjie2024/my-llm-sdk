@@ -1,182 +1,173 @@
 [English](README_en.md) | **中文**
 
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
+[![Python](https://img.shields.io/badge/Python-3.10+-blue.svg)](https://www.python.org/)
 
 # My LLM SDK
 
 **一套代码，调用多家模型。**
 
-统一的 Python SDK，支持 Gemini、Qwen、OpenAI 等多家 LLM，提供一致的 API 接口。
+> 用同一套 `client.generate()` / `stream()` 调用 Gemini / Qwen / OpenAI-compatible。  
+> 内置预算控制、429 自动等待重试、Ledger 记账与用量统计。  
+> 适合：团队共享模型策略 + 个人本地 Key 隔离 + 需要稳定跑批/高并发/成本可追踪的场景。
+
+---
+
+## � 60 秒快速上手
+
+```bash
+pip install -e .
+python -m my_llm_sdk.cli init      # 生成配置文件
+# 编辑 config.yaml，填入你的 API Key
+python -m my_llm_sdk.cli doctor    # 检查连通性
+python -m my_llm_sdk.cli generate --model gemini-2.5-flash --prompt "用三句话解释量子力学"
+```
+
+---
+
+## 💡 为什么用它
+
+| 需求 | My LLM SDK 的解决方案 |
+| :--- | :--- |
+| **一次接入，多家切换** | 不改代码，只换 `model_alias` |
+| **怕账单失控** | 请求前预算检查 + 统一 Ledger 记账 |
+| **怕 429 / 超时** | 自动退避重试，可配置最大等待 |
+| **团队协作** | `llm.project.yaml` (Git) + `config.yaml` (本地) 彻底分离 |
+| **跑批 / 并发** | Async + Streaming + 结构化返回（cost/token 统一） |
+
+---
+
+## 🧪 典型用法
+
+### 1. 跑批：预算封顶 + 自动重试
+适合 nightly job / 数据标注 / 评测脚本：超预算自动拒绝，429 自动等待重试。
+
+### 2. 在线服务：Streaming + 统一用量统计
+`stream=True` 流式返回，同时精确记录 token/cost 到 Ledger。
+
+### 3. 团队协作：策略共享，Key 永不入库
+`llm.project.yaml` 提交到 Git；`config.yaml` 只在本地（支持 personal overrides）。
+
+---
 
 ## 🎯 核心功能
 
 | 功能 | 说明 |
 | :--- | :--- |
-| **统一接口** | 一套 `client.generate()` 调用所有厂商，无需学习不同 SDK |
+| **统一接口** | 一套 `client.generate()` 调用所有厂商 |
 | **多模型支持** | Gemini 2.5/3.0, Qwen Max/Plus/Flash, OpenAI Compatible |
+| **Async + Streaming** | `generate_async` / `stream_async` 支持高并发 |
+| **结构化返回** | `full_response=True` 获取 usage/cost/token |
 | **预算控制** | 每次请求前检查消费，超额自动拒绝 |
-| **自动重试** | 遇到 429/超时自动等待重试 |
+| **自动重试** | 429/超时退避重试，可配置 `max_retries` / `max_delay_s` |
 | **双层配置** | 项目规则 vs API Key 分离，防止误提交 |
-*   **⏳ 异步与流式 (New in V0.2/0.3)**:
-    *   **Async API**: `client.generate_async` 和 `client.stream_async` 支持高并发（每秒 50+ 请求）。
-    *   **Streaming**: 完整支持流式输出 (`stream=True`)，且能精准记录 Ledger。
-    *   **Structured Output**: 统一返回对象，包含 Cost 和 Token Usage。
-    *   **Resilience**: 自动重试与速率限制等待 (`resilience.wait_on_rate_limit`)。
-## 🛠️ 安装指南
-```bash
-# 1. 开发模式安装 (推荐)
-# 如果你在本项目根目录下:
-pip install -e .
 
-# 2. 在其他项目中引用 (Local Path)
-# 如果你想在另一个项目中使用本 SDK:
-pip install -e /path/to/documents/my-llm-sdk
+---
 
-# 3. 打包安装 (Production)
-# 生成 .whl 文件并安装
-pip install build
-python -m build
-pip install dist/my_llm_sdk-0.1.0-py3-none-any.whl
+## ✅ 可靠性
+
+- **自动重试**：429/超时退避（可配置最大次数与最大等待时间）
+- **Ledger 记账**：每次请求记录 cost / token / provider / model / latency
+- **结构化返回**：`full_response=True` 统一拿到 usage/cost
+- **测试覆盖**：`pytest` 单元测试 + 端到端验证脚本
+
+---
+
+## 📦 Python API
+
+```python
+from my_llm_sdk.client import LLMClient
+
+client = LLMClient()
+
+# 基础调用
+response = client.generate("你好", model_alias="gemini-2.5-flash")
+print(response)
+
+# 结构化对象（含 cost/token）
+res = client.generate("你好", full_response=True)
+print(f"Cost: ${res.cost}, Tokens: {res.usage.total_tokens}")
+
+# 流式输出
+for event in client.stream("数到5", model_alias="qwen-max"):
+    print(event.delta, end="", flush=True)
 ```
-## ⚡ 快速上手
-### 1. 初始化配置 (Initialize Config)
-在你的项目根目录下运行：
-```bash
-python -m my_llm_sdk.cli init
-```
-这将自动生成：
-*   `llm.project.yaml`: 项目级模型规则 (建议提交到 Git)。
-*   `config.yaml`: 包含 API Key 的模板 (请编辑并**加入 .gitignore**)。
 
-### 2. 填入密钥 (Setup Keys)
-编辑 `config.yaml`，填入 API Key：
+---
+
+## 🔧 配置参考
+
+### config.yaml（本地，勿提交 Git）
 ```yaml
 api_keys:
   google: "AIzaSy..."
   dashscope: "sk-..."
-  openai: "sk-..."
 daily_spend_limit: 5.0
 ```
 
-### 3. 运行诊断 (Doctor)
-检查网络和 Key 是否配置正确：
-```bash
-python -m src.cli doctor
+### llm.project.yaml（可提交 Git）
+```yaml
+model_registry:
+  gemini-2.5-flash:
+    provider: google
+    model_id: gemini-2.5-flash
+    rpm: 1000
 ```
 
-## 🔧 进阶配置 (Advanced Config)
-`config.yaml` 不仅仅用于存储密钥，还支持**本地覆盖**（不会影响团队共享配置）：
+### 重试配置
+```yaml
+resilience:
+  max_retries: 3
+  wait_on_rate_limit: true
+  max_delay_s: 60
+```
 
-### 1. 本地模型定义 (personal_model_overrides)
-定义仅本地可见的模型（如 Ollama 或临时测试模型）：
+### 本地模型覆盖（如 Ollama）
 ```yaml
 personal_model_overrides:
   llama-3-local:
-    provider: "openai" # 兼容协议
-    model_id: "llama3"
+    provider: openai
+    model_id: llama3
     api_base: "http://localhost:11434/v1"
-    rpm: 9999
 ```
 
-### 2. 本地路由策略 (personal_routing_policies)
-定义本地优先的路由规则：
-```yaml
-personal_routing_policies:
-  - name: "debug-local-first"
-    strategy: "priority"
-    params:
-      priority_list: "llama-3-local,gpt-4"
-```
-这样你就可以在不修改 `llm.project.yaml` 的情况下，强制 SDK 优先使用本地模型进行调试。
-### 3. 生成文本 (CLI)
-**使用 Gemini 2.5:**
-```bash
-python -m my_llm_sdk.cli generate --prompt "解释量子力学" --model gemini-2.5-flash
-```
-**使用 Qwen Max:**
-```bash
-python -m my_llm_sdk.cli generate --prompt "你好，写首诗" --model qwen-max
-```
-## 📦 Python API 调用
-```python
-from my_llm_sdk.client import LLMClient
-import asyncio
+---
 
-# 初始化 (自动加载配置)
-client = LLMClient()
+## 📊 性能基准 (2025-12)
 
-async def main():
-    try:
-        # 1. 基础生成 (Blocking)
-        print("--- Sync Generate ---")
-        response = client.generate(
-            prompt="为银行账户设计一个 Python 类", 
-            model_alias="gemini-2.5-flash"
-        )
-        print(response) # 直接打印内容
-
-        # 2. 结构化对象 (Rich Object)
-        print("\n--- Structured Response ---")
-        res_obj = client.generate("Hello", full_response=True)
-        print(f"Cost: ${res_obj.cost}, Tokens: {res_obj.usage.total_tokens}")
-
-        # 3. 异步流式 (Async Streaming - High Concurrency)
-        print("\n--- Async Stream ---")
-        stream = client.stream_async("数到3", model_alias="gemini-2.5-flash")
-        async for event in stream:
-            if event.delta:
-                print(event.delta, end="", flush=True)
-        
-    except Exception as e:
-        print(f"Error: {e}")
-
-if __name__ == "__main__":
-    asyncio.run(main())
-```
-
-### 🧩 核心功能配置
-在 `llm.project.yaml` 或 `config.yaml` 中配置 Resilience：
-```yaml
-resilience:
-  max_retries: 3           # 失败重试次数
-  wait_on_rate_limit: true # 遇到 429 是否自动等待
-  max_delay_s: 60          # 最大等待时间
-```
-
-## 📂 项目结构
-```
-my-llm-sdk/
-│   └── my_llm_sdk/     # Python Package
-│       ├── budget/     # ...
-│       ├── client.py   # ...
-│       └── ...
-├── tests/              # Pytest 测试套件
-├── config.yaml         # 本地密钥 (已忽略)
-├── llm.project.yaml    # 项目规则 (已提交)
-└── ledger.db           # 本地交易日志
-```
-## 📝 配置参考
-### llm.project.yaml
-定义 **模型注册表 (Model Registry)** (别名映射到真实 Model ID) 和 **允许的区域 (Allowed Regions)**。
-### config.yaml
-定义 **API Keys** 和 **Endpoints**。默认情况下，Qwen 端点连接到 CN，但支持灵活路由。
-
-## 📊 性能基准测试 (2025-12)
-
-基于 `tests/benchmark.py` 的实测数据（Simple:常识问答, Complex:多线程爬虫代码生成）：
-
-| 模型 (Model) | 简单任务耗时 | 复杂任务耗时 | 复杂回答长度 | 特点 |
+| 模型 | 简单任务 | 复杂任务 | 回答长度 | 特点 |
 | :--- | :--- | :--- | :--- | :--- |
-| **qwen-flash** | **3.70s** | 48.53s | **11414 c** | **响应最快且内容最丰富** |
-| **qwen-plus** | 3.95s | 33.15s | 7968 c | 简单任务极快 (3.9s) |
-| **gemini-3.0-flash** | 4.49s | **14.85s** | 5403 c | **复杂任务处理速度最快** |
-| **gemini-2.5-pro** | 16.47s | 53.80s | 9988 c | 深度思考，内容详实 |
-| **qwen-max** | 9.75s | 31.36s | 3822 c | 回答精炼 |
+| qwen-flash | **3.70s** | 48.53s | 11414c | 响应最快 |
+| gemini-3.0-flash | 4.49s | **14.85s** | 5403c | 复杂任务最快 |
+| qwen-plus | 3.95s | 33.15s | 7968c | 简单任务极快 |
+| gemini-2.5-pro | 16.47s | 53.80s | 9988c | 深度思考 |
+| qwen-max | 9.75s | 31.36s | 3822c | 回答精炼 |
 
-> *注：测试环境取决于本地网络状况，数据仅供参考。*
+> **复现**：`python benchmark.py` (开发模式下运行)  
+> **环境**：macOS + 家用网络，不同地区/网络差异大  
+> **任务定义**：Simple = 常识问答；Complex = 多线程爬虫代码生成
+
+---
+
+## 🗺️ Roadmap
+
+- [ ] 发布到 PyPI (`pip install my-llm-sdk`)
+- [ ] 增加 OpenTelemetry tracing
+- [ ] 更多 OpenAI-compatible provider 支持
+- [ ] 多模态支持 (Vision / Audio)
+- [ ] 更细粒度的按 provider 错误码重试策略
+
+---
 
 ## 🤝 贡献
-1.  Fork 本仓库。
-2.  在 `src/my_llm_sdk/providers/` 中添加新的 Provider。
-3.  在 `src/my_llm_sdk/client.py` 中注册它。
-4.  提交 PR!
+
+1. Fork 本仓库
+2. 在 `src/my_llm_sdk/providers/` 添加新 Provider（继承 `BaseProvider`）
+3. 在 `src/my_llm_sdk/client.py` 的 `self.providers` 中注册
+4. 提交 PR
+
+---
+
+## 📄 License
+
+[Apache 2.0](LICENSE)
