@@ -3,7 +3,7 @@ import asyncio
 import functools
 import random
 from typing import Callable, Any, Type, Union, Tuple
-from src.config.models import ResilienceConfig
+from my_llm_sdk.config.models import ResilienceConfig
 
 # Exceptions that should trigger a retry
 RETRYABLE_EXCEPTIONS = (

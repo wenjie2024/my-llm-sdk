@@ -2,16 +2,16 @@ import pytest
 import os
 import tempfile
 from unittest.mock import patch, MagicMock
-from src.client import LLMClient
-from src.config.models import ProjectConfig, UserConfig, MergedConfig, ModelDefinition
+from my_llm_sdk.client import LLMClient
+from my_llm_sdk.config.models import ProjectConfig, UserConfig, MergedConfig, ModelDefinition
 
 # Mock Config Loader to avoid file dependencies in unit test
 @pytest.fixture
 def mock_loader():
-    with patch('src.client.load_config') as mock:
+    with patch('my_llm_sdk.client.load_config') as mock:
         # valid config
         p_def = ModelDefinition(name="test-model", provider="echo", model_id="echo-v1")
-        from src.config.models import ResilienceConfig
+        from my_llm_sdk.config.models import ResilienceConfig
         config = MergedConfig(
             final_routing_policies=[],
             final_model_registry={"test-model": p_def},
@@ -34,10 +34,10 @@ def test_client_generate_success(mock_loader, tmp_path):
     # LLMClient code isn't easily injectable without modification or patching Ledger init.
     # Let's patch Ledger initialization.
     
-    with patch('src.budget.ledger.Ledger.__init__', return_value=None) as mock_ledger_init:
+    with patch('my_llm_sdk.budget.ledger.Ledger.__init__', return_value=None) as mock_ledger_init:
         # We also need to mock Ledger methods since __init__ is None
-        with patch('src.budget.ledger.Ledger.get_daily_spend', return_value=0.0):
-            with patch('src.budget.ledger.Ledger.record_transaction') as mock_record:
+        with patch('my_llm_sdk.budget.ledger.Ledger.get_daily_spend', return_value=0.0):
+            with patch('my_llm_sdk.budget.ledger.Ledger.record_transaction') as mock_record:
                 
                 client = LLMClient()
                 response = client.generate("Hello", "test-model")

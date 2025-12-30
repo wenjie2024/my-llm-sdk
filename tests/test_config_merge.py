@@ -1,7 +1,7 @@
 
 import pytest
-from src.config.models import ProjectConfig, UserConfig, RoutingPolicy, ModelDefinition, Endpoint
-from src.config.loader import merge_configs
+from my_llm_sdk.config.models import ProjectConfig, UserConfig, RoutingPolicy, ModelDefinition, Endpoint
+from my_llm_sdk.config.loader import merge_configs
 
 def test_merge_routing_policies_append():
     """Test that user policies are appended to project policies."""

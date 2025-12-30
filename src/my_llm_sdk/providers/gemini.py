@@ -2,7 +2,7 @@ import google.generativeai as genai
 import time
 from typing import Iterator
 from .base import BaseProvider
-from src.schemas import GenerationResponse, TokenUsage, StreamEvent
+from my_llm_sdk.schemas import GenerationResponse, TokenUsage, StreamEvent
 
 class GeminiProvider(BaseProvider):
     def generate(self, model_id: str, prompt: str, api_key: str = None, **kwargs) -> GenerationResponse:

@@ -1,6 +1,6 @@
 from typing import Any, Dict, Union, Iterator
 from abc import ABC, abstractmethod
-from src.schemas import GenerationResponse, TokenUsage, StreamEvent
+from my_llm_sdk.schemas import GenerationResponse, TokenUsage, StreamEvent
 
 class BaseProvider(ABC):
     @abstractmethod

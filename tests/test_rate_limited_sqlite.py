@@ -1,8 +1,8 @@
 import pytest
 import time
 import sqlite3
-from src.budget.ledger import Ledger
-from src.budget.rate_limiter import RateLimiter, RateLimitExceededError
+from my_llm_sdk.budget.ledger import Ledger
+from my_llm_sdk.budget.rate_limiter import RateLimiter, RateLimitExceededError
 
 @pytest.fixture
 def mock_ledger(tmp_path):

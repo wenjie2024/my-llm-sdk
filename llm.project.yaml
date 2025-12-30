@@ -1,78 +1,68 @@
-project_name: "vibe-sdk-demo"
-
-# 1. Routing Policies (Project rules)
+project_name: vibe-sdk-demo
 routing_policies:
-  - name: "enterprise-compliant"
-    strategy: "priority"
-    params:
-      priority_list: "azure,openai"
-
-# 2. Model Registry (Source of Truth)
+- name: enterprise-compliant
+  strategy: priority
+  params:
+    priority_list: azure,openai
 model_registry:
   gpt-4:
-    name: "gpt-4"
-    provider: "echo"
-    model_id: "echo-gpt-4-turbo"
-  
-  # Gemini Models (User Requested)
+    name: gpt-4
+    provider: echo
+    model_id: echo-gpt-4-turbo
   gemini-2.5-flash:
-    name: "gemini-2.5-flash"
-    provider: "google"
-    model_id: "gemini-2.5-flash"
+    name: gemini-2.5-flash
+    provider: google
+    model_id: gemini-2.5-flash
     rpm: 1000
     tpm: 1000000
-
   gemini-2.5-pro:
-    name: "gemini-2.5-pro"
-    provider: "google"
-    model_id: "gemini-2.5-pro"
+    name: gemini-2.5-pro
+    provider: google
+    model_id: gemini-2.5-pro
     rpm: 150
     tpm: 2000000
-
   gemini-3.0-flash:
-    name: "gemini-3.0-flash"
-    provider: "google"
-    model_id: "gemini-3-flash-preview"
+    name: gemini-3.0-flash
+    provider: google
+    model_id: gemini-3-flash-preview
     rpm: 1000
     tpm: 1000000
-
   gemini-3.0-pro:
-    name: "gemini-3.0-pro"
-    provider: "google"
-    model_id: "gemini-3-pro-preview"
+    name: gemini-3.0-pro
+    provider: google
+    model_id: gemini-3-pro-preview
     rpm: 25
     tpm: 1000000
-
-  # New: Qwen Model
   qwen-max:
-    name: "qwen-max"
-    provider: "dashscope"
-    model_id: "qwen-max"
-    rpm: 600     # Updated based on user input (Tier 2/Standard)
-    tpm: 100000  # Baseline TPM limit
-    rpd: 2000    # Safety daily limit
-
+    name: qwen-max
+    provider: dashscope
+    model_id: qwen-max
+    rpm: 600
+    tpm: 100000
+    rpd: 2000
   qwen-plus:
-    name: "qwen-plus"
-    provider: "dashscope"
-    model_id: "qwen-plus"
-    rpm: 600       # User provided
-    tpm: 1000000   # User provided (1M)
-
+    name: qwen-plus
+    provider: dashscope
+    model_id: qwen-plus
+    rpm: 600
+    tpm: 1000000
   qwen-flash:
-    name: "qwen-flash"
-    provider: "dashscope"
-    model_id: "qwen-flash"
-    rpm: 600       # User provided
-    tpm: 1000000   # Baseline 1M (Docs say up to 5M, keeping conservative)
-
-# 3. Residency Rules
-allowed_regions: 
-  - "us"
-  - "eu"
-  - "local"
-  - "cn" 
-  - "sg" # Added SG for Singapore Endpoint support
-
+    name: qwen-flash
+    provider: dashscope
+    model_id: qwen-flash
+    rpm: 600
+    tpm: 1000000
+  default:
+    name: default
+    provider: google
+    model_id: gemini-2.5-pro
+    rpm: 150
+    tpm: 2000000
+allowed_regions:
+- us
+- eu
+- local
+- cn
+- sg
 allow_logging: true
 budget_strict_mode: true

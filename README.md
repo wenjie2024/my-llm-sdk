@@ -12,7 +12,7 @@ A robust, enterprise-grade Python SDK for LLM interactions. Designed with strict
     *   `config.yaml`: **Local only** (Git-ignored). Stores API keys and personal endpoints.
     *   **Smart Merge**: Append (Policies) / Overlay (Models) / Filter (Endpoints).
 *   **🩺 Doctor Module**:
-    *   `python -m src.cli doctor`: Auto-diagnose network connectivity to US/CN/SG endpoints.
+    *   `python -m my_llm_sdk.cli doctor`: Auto-diagnose connectivity. to US/CN/SG endpoints.
     *   **Smart Routing**: Qwen provider automatically switches between CN/SG endpoints based on Google connectivity checks.
 *   **🔌 Multi-Engine Support**:
     *   **Google Gemini**: Supports 1.5, 2.5, and 3.0 (Preview) series.
@@ -35,37 +35,39 @@ python -m build
 pip install dist/my_llm_sdk-0.1.0-py3-none-any.whl
 ```
 ## ⚡ Quick Start
-### 1. Configure Credentials
-Copy the example config and fill in your keys:
+### 1. Initialize Config
+Run the following command in your project root:
 ```bash
-cd my-llm-sdk
-cp config.example.yaml config.yaml
+python -m my_llm_sdk.cli init
 ```
-Edit `config.yaml`:
+This generates:
+*   `llm.project.yaml`: Project rules (Commit this).
+*   `config.yaml`: Local secrets template (Add to **.gitignore**).
+
+### 2. Configure Keys
+Edit `config.yaml` and add your API keys:
 ```yaml
 api_keys:
-  google: "AIzaSy..."      # Gemini Key
-  dashscope: "sk-..."      # Qwen Key
-  openai: "sk-..."         # OpenAI Key
-daily_spend_limit: 5.0     # Daily budget in USD
+  google: "AIzaSy..."
 ```
-### 2. Run Diagnostics (Doctor)
-Check if your network and keys are set up correctly:
+
+### 3. Run Diagnostics (Doctor)
+Check connection and keys:
 ```bash
-python -m src.cli doctor
+python -m my_llm_sdk.cli doctor
 ```
 ### 3. Generate Text (CLI)
 **Using Gemini 2.5:**
 ```bash
-python -m src.cli generate --prompt "Explain Quantum Physics" --model gemini-2.5-flash
+python -m my_llm_sdk.cli generate --prompt "Explain Quantum Mechanics" --model gemini-2.5-flash
 ```
 **Using Qwen Max:**
 ```bash
-python -m src.cli generate --prompt "你好，写首诗" --model qwen-max
+python -m my_llm_sdk.cli generate --prompt "Write a poem" --model qwen-max
 ```
 ## 📦 Python API Usage
 ```python
-from src.client import LLMClient
+from my_llm_sdk.client import LLMClient
 # Initialize (loads config automatically)
 client = LLMClient()
 try:
@@ -85,14 +87,14 @@ asyncio.run(client.run_doctor())
 ## 📂 Project Structure
 ```
 my-llm-sdk/
-├── src/
-│   ├── budget/         # Budget Control & Pricing Logic
-│   ├── config/         # Config Loader & Pydantic Models
-│   ├── doctor/         # Connectivity & Health Checks
-│   ├── providers/      # Adapters (Gemini, Qwen, Echo)
-│   ├── utils/          # Network utils
-│   ├── client.py       # Main Entry Point
-│   └── cli.py          # Command Line Interface
+│   └── my_llm_sdk/     # Python Package
+│       ├── budget/     # Budget Control & Pricing Logic
+│       ├── config/     # Config Loader & Pydantic Models
+│       ├── doctor/     # Connectivity & Health Checks
+│       ├── providers/  # Adapters (Gemini, Qwen, Echo)
+│       ├── utils/      # Network utils
+│       ├── client.py   # Main Entry Point
+│       └── cli.py      # Command Line Interface
 ├── tests/              # Pytest Suite
 ├── config.yaml         # Local Secrets (Ignored)
 ├── llm.project.yaml    # Project Rules (Committed)

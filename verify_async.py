@@ -1,6 +1,6 @@
 import asyncio
 import time
-from src.client import LLMClient
+from my_llm_sdk.client import LLMClient
 
 async def concurrency_test():
     print("🚀 Starting Async Concurrency Verification")

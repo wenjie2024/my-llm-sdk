@@ -2,8 +2,8 @@ import asyncio
 import httpx
 from typing import List, Dict, Any
 from dataclasses import dataclass, field
-from src.config.models import MergedConfig, Endpoint
-from src.budget.ledger import Ledger
+from my_llm_sdk.config.models import MergedConfig, Endpoint
+from my_llm_sdk.budget.ledger import Ledger
 
 @dataclass
 class CheckResult:

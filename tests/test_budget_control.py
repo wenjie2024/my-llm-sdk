@@ -2,13 +2,13 @@ import pytest
 import threading
 import tempfile
 import os
-from src.budget.ledger import Ledger
-from src.budget.controller import BudgetController, QuotaExceededError
-from src.config.models import MergedConfig, Endpoint, RoutingPolicy
+from my_llm_sdk.budget.ledger import Ledger
+from my_llm_sdk.budget.controller import BudgetController, QuotaExceededError
+from my_llm_sdk.config.models import MergedConfig, Endpoint, RoutingPolicy
 
 # Mock Config
 def get_mock_config(limit: float):
-    from src.config.models import ResilienceConfig
+    from my_llm_sdk.config.models import ResilienceConfig
     return MergedConfig(
         final_routing_policies=[],
         final_model_registry={},

@@ -2,7 +2,7 @@ import pytest
 import asyncio
 import sqlite3
 import time
-from src.budget.ledger import Ledger, LedgerEvent
+from my_llm_sdk.budget.ledger import Ledger, LedgerEvent
 
 @pytest.fixture
 def temp_ledger(tmp_path):

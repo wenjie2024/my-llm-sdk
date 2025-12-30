@@ -1,8 +1,8 @@
 import asyncio
 import sqlite3
 import json
-from src.client import LLMClient
-from src.schemas import GenerationResponse
+from my_llm_sdk.client import LLMClient
+from my_llm_sdk.schemas import GenerationResponse
 
 async def verify_structured():
     print("🚀 Starting Structured Output Verification")

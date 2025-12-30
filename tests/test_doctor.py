@@ -1,9 +1,9 @@
 import pytest
 import respx
 import httpx
-from src.doctor.checker import Doctor
-from src.config.models import MergedConfig, Endpoint
-from src.budget.ledger import Ledger
+from my_llm_sdk.doctor.checker import Doctor
+from my_llm_sdk.config.models import MergedConfig, Endpoint
+from my_llm_sdk.budget.ledger import Ledger
 
 # Mock Config
 def get_mock_config():
@@ -11,7 +11,7 @@ def get_mock_config():
         Endpoint(name="google", url="https://google.com", region="us"),
         Endpoint(name="bad-host", url="https://bad.host", region="us"),
     ]
-    from src.config.models import ResilienceConfig
+    from my_llm_sdk.config.models import ResilienceConfig
     return MergedConfig(
         final_routing_policies=[],
         final_model_registry={},

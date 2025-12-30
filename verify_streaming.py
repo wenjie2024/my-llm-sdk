@@ -1,8 +1,8 @@
 import asyncio
 import json
 import time
-from src.client import LLMClient
-from src.schemas import StreamEvent
+from my_llm_sdk.client import LLMClient
+from my_llm_sdk.schemas import StreamEvent
 
 def verify_streaming():
     print("🚀 Starting Streaming Verification")

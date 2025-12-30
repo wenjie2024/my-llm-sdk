@@ -1,8 +1,8 @@
 from typing import Dict, Any
 import uuid
-from src.config.models import MergedConfig
+from my_llm_sdk.config.models import MergedConfig
 from .ledger import Ledger
-from src.config.exceptions import ConfigurationError
+from my_llm_sdk.config.exceptions import ConfigurationError
 
 class QuotaExceededError(Exception):
     """Raised when budget limit is exceeded."""
@@ -62,7 +62,7 @@ class BudgetController:
         """
         # Import internally or top-level? Top level avoids circular if careful.
         # But ledger.py is already imported.
-        from src.budget.ledger import LedgerEvent
+        from my_llm_sdk.budget.ledger import LedgerEvent
         
         # Build usage dict from kwargs if present, similar to record_transaction wrapper?
         # record_transaction logic:

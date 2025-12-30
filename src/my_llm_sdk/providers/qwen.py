@@ -3,8 +3,8 @@ import dashscope
 import time
 from typing import Iterator
 from .base import BaseProvider
-from src.schemas import GenerationResponse, TokenUsage, StreamEvent
-from src.utils.network import can_connect_to_google
+from my_llm_sdk.schemas import GenerationResponse, TokenUsage, StreamEvent
+from my_llm_sdk.utils.network import can_connect_to_google
 
 class QwenProvider(BaseProvider):
     def generate(self, model_id: str, prompt: str, api_key: str = None, **kwargs) -> GenerationResponse:

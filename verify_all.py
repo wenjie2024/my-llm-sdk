@@ -1,7 +1,7 @@
 import asyncio
 import sys
-from src.client import LLMClient
-from src.budget.ledger import Ledger
+from my_llm_sdk.client import LLMClient
+from my_llm_sdk.budget.ledger import Ledger
 
 async def verify_models():
     print("🚀 Starting End-to-End Verification")

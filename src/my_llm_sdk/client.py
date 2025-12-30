@@ -1,13 +1,13 @@
 import asyncio
 from typing import Optional, Dict
-from src.config.loader import load_config
-from src.budget.controller import BudgetController
-from src.budget.pricing import calculate_estimated_cost
-from src.doctor.checker import Doctor
-from src.doctor.report import print_report
-from src.providers.base import BaseProvider, EchoProvider
-from src.providers.gemini import GeminiProvider
-from src.providers.qwen import QwenProvider
+from my_llm_sdk.config.loader import load_config
+from my_llm_sdk.budget.controller import BudgetController
+from my_llm_sdk.budget.pricing import calculate_estimated_cost
+from my_llm_sdk.doctor.checker import Doctor
+from my_llm_sdk.doctor.report import print_report
+from my_llm_sdk.providers.base import BaseProvider, EchoProvider
+from my_llm_sdk.providers.gemini import GeminiProvider
+from my_llm_sdk.providers.qwen import QwenProvider
 
 class LLMClient:
     def __init__(self, project_config_path: str = None, user_config_path: str = None):
@@ -25,7 +25,7 @@ class LLMClient:
         self.doctor = Doctor(self.config, self.budget.ledger)
         
         # 4. Init Rate Limiter [NEW]
-        from src.budget.rate_limiter import RateLimiter
+        from my_llm_sdk.budget.rate_limiter import RateLimiter
         self.rate_limiter = RateLimiter(self.budget.ledger)
         
         # 5. Init Providers
@@ -37,11 +37,11 @@ class LLMClient:
         }
         
         # 6. Init Resilience Manager [NEW]
-        from src.utils.resilience import RetryManager
+        from my_llm_sdk.utils.resilience import RetryManager
         self.retry_manager = RetryManager(self.config.resilience)
 
     from typing import Union
-    from src.schemas import GenerationResponse
+    from my_llm_sdk.schemas import GenerationResponse
 
     def generate(self, prompt: str, model_alias: str = "default", full_response: bool = False) -> Union[str, "GenerationResponse"]:
         """
@@ -160,7 +160,7 @@ class LLMClient:
             return response_obj.content
 
     from typing import Iterator
-    from src.schemas import StreamEvent
+    from my_llm_sdk.schemas import StreamEvent
 
     def stream(self, prompt: str, model_alias: str = "default") -> Iterator["StreamEvent"]:
         """

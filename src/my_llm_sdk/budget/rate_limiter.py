@@ -1,6 +1,6 @@
 import time
 from typing import Optional
-from src.budget.ledger import Ledger
+from my_llm_sdk.budget.ledger import Ledger
 
 class RateLimitExceededError(Exception):
     """Raised when rate limit is exceeded."""

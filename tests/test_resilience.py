@@ -1,8 +1,8 @@
 import pytest
 from unittest.mock import MagicMock, call
 import time
-from src.utils.resilience import RetryManager
-from src.config.models import ResilienceConfig
+from my_llm_sdk.utils.resilience import RetryManager
+from my_llm_sdk.config.models import ResilienceConfig
 
 class TestResilience:
     def test_retry_success(self):

@@ -1,6 +1,6 @@
 import asyncio
 import time
-from src.client import LLMClient
+from my_llm_sdk.client import LLMClient
 from tabulate import tabulate # You might need to install this, or I can formatting manually. 
 # Let's format manually to avoid dependencies.
 

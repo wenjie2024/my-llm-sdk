@@ -11,7 +11,7 @@
     *   `llm.project.yaml`: 提交到 Git。定义合法的模型列表和路由策略。
     *   `config.yaml`: **仅本地** (Git-ignored)。存储 API Key 和个人端点。
     *   **智能合并**: 支持 追加 (Policies) / 覆盖 (Models) / 过滤 (Endpoints) 策略。
-    *   `python -m src.cli doctor`: 自动诊断与美国/中国/新加坡节点的连通性。
+    *   `python -m my_llm_sdk.cli doctor`: 自动诊断与美国/中国/新加坡节点的连通性。
     *   **智能路由**: Qwen 提供商会根据是否能连通 Google，自动在 CN (国内) 和 SG (新加坡) 节点间切换。
 *   **🔌 多引擎支持**:
     *   **Google Gemini**: 支持 1.5, 2.5, 和 3.0 (Preview) 系列。
@@ -39,37 +39,67 @@ python -m build
 pip install dist/my_llm_sdk-0.1.0-py3-none-any.whl
 ```
 ## ⚡ 快速上手
-### 1. 配置凭证
-复制样例配置并填入您的 Key：
+### 1. 初始化配置 (Initialize Config)
+在你的项目根目录下运行：
 ```bash
-cd my-llm-sdk
-cp config.example.yaml config.yaml
+python -m my_llm_sdk.cli init
 ```
-编辑 `config.yaml`:
+这将自动生成：
+*   `llm.project.yaml`: 项目级模型规则 (建议提交到 Git)。
+*   `config.yaml`: 包含 API Key 的模板 (请编辑并**加入 .gitignore**)。
+
+### 2. 填入密钥 (Setup Keys)
+编辑 `config.yaml`，填入 API Key：
 ```yaml
 api_keys:
-  google: "AIzaSy..."      # Gemini Key
-  dashscope: "sk-..."      # Qwen Key
-  openai: "sk-..."         # OpenAI Key
-daily_spend_limit: 5.0     # 每日预算 (美元)
+  google: "AIzaSy..."
+  dashscope: "sk-..."
+  openai: "sk-..."
+daily_spend_limit: 5.0
 ```
-### 2. 运行诊断 (Doctor)
+
+### 3. 运行诊断 (Doctor)
 检查网络和 Key 是否配置正确：
 ```bash
 python -m src.cli doctor
 ```
+
+## 🔧 进阶配置 (Advanced Config)
+`config.yaml` 不仅仅用于存储密钥，还支持**本地覆盖**（不会影响团队共享配置）：
+
+### 1. 本地模型定义 (personal_model_overrides)
+定义仅本地可见的模型（如 Ollama 或临时测试模型）：
+```yaml
+personal_model_overrides:
+  llama-3-local:
+    provider: "openai" # 兼容协议
+    model_id: "llama3"
+    api_base: "http://localhost:11434/v1"
+    rpm: 9999
+```
+
+### 2. 本地路由策略 (personal_routing_policies)
+定义本地优先的路由规则：
+```yaml
+personal_routing_policies:
+  - name: "debug-local-first"
+    strategy: "priority"
+    params:
+      priority_list: "llama-3-local,gpt-4"
+```
+这样你就可以在不修改 `llm.project.yaml` 的情况下，强制 SDK 优先使用本地模型进行调试。
 ### 3. 生成文本 (CLI)
 **使用 Gemini 2.5:**
 ```bash
-python -m src.cli generate --prompt "解释量子力学" --model gemini-2.5-flash
+python -m my_llm_sdk.cli generate --prompt "解释量子力学" --model gemini-2.5-flash
 ```
 **使用 Qwen Max:**
 ```bash
-python -m src.cli generate --prompt "你好，写首诗" --model qwen-max
+python -m my_llm_sdk.cli generate --prompt "你好，写首诗" --model qwen-max
 ```
 ## 📦 Python API 调用
 ```python
-from src.client import LLMClient
+from my_llm_sdk.client import LLMClient
 import asyncio
 
 # 初始化 (自动加载配置)
@@ -116,14 +146,10 @@ resilience:
 ## 📂 项目结构
 ```
 my-llm-sdk/
-├── src/
-│   ├── budget/         # 预算控制 & 定价逻辑
-│   ├── config/         # 配置加载器 & Pydantic 模型
-│   ├── doctor/         # 连通性 & 健康检查
-│   ├── providers/      # 适配器 (Gemini, Qwen, Echo)
-│   ├── utils/          # 网络工具
-│   ├── client.py       # 主入口
-│   └── cli.py          # 命令行接口
+│   └── my_llm_sdk/     # Python Package
+│       ├── budget/     # ...
+│       ├── client.py   # ...
+│       └── ...
 ├── tests/              # Pytest 测试套件
 ├── config.yaml         # 本地密钥 (已忽略)
 ├── llm.project.yaml    # 项目规则 (已提交)
@@ -151,6 +177,6 @@ my-llm-sdk/
 
 ## 🤝 贡献
 1.  Fork 本仓库。
-2.  在 `src/providers/` 中添加新的 Provider。
-3.  在 `src/client.py` 中注册它。
+2.  在 `src/my_llm_sdk/providers/` 中添加新的 Provider。
+3.  在 `src/my_llm_sdk/client.py` 中注册它。
 4.  提交 PR!
