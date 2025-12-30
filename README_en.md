@@ -2,22 +2,24 @@
 
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
 
-# My LLM SDK (Production Ready)
-A robust, enterprise-grade Python SDK for LLM interactions. Designed with strict **Budget Control**, **Dual-Layer Configuration**, and **Self-Diagnostics**.
-> **Status**: Active Development
-> **Features**: Multi-Provider (OpenAI, Gemini, Qwen), SQLite Budget Ledger, Network Doctor, Dynamic Endpoint Switching.
-## 🚀 Key Features
-*   **🛡️ Budget Control**:
-    *   **Pre-check**: Prevents requests *before* they happen if daily limit is exceeded.
-    *   **Ledger**: Local `sqlite3` (WAL mode) records every transaction with high concurrency support.
-    *   **Dynamic Pricing**: Real-time pricing estimation for Qwen-Max, Gemini 3.0, etc.
-*   **⚙️ Dual-Layer Config**:
-    *   `llm.project.yaml`: Committed to Git. Defines valid models and routing policies.
-    *   `config.yaml`: **Local only** (Git-ignored). Stores API keys and personal endpoints.
-    *   **Smart Merge**: Append (Policies) / Overlay (Models) / Filter (Endpoints).
-*   **🩺 Doctor Module**:
-    *   `python -m my_llm_sdk.cli doctor`: Auto-diagnose connectivity. to US/CN/SG endpoints.
-    *   **Smart Routing**: Qwen provider automatically switches between CN/SG endpoints based on Google connectivity checks.
+# My LLM SDK
+
+A Python SDK for calling multiple LLM APIs (Gemini, Qwen, OpenAI).
+
+## 😰 Pain Points
+- **Runaway costs**: Forgot to add limits, woke up to a $200 bill.
+- **Config mess**: API keys mixed with project settings, accidentally committed to Git.
+- **Unreliable networks**: Timeouts and 429s when calling Gemini from China.
+
+## ✅ Solutions
+- **Budget guard**: Pre-checks daily spend before every request. Blocks if over limit.
+- **Two-layer config**: Project rules (Git) separated from API keys (local only).
+- **Auto-retry**: Handles timeouts and 429s automatically. Qwen switches between CN/SG endpoints.
+
+## 🔌 Supported Models
+- **Google Gemini**: 2.5/3.0 Flash, 2.5/3.0 Pro
+- **Alibaba Qwen**: Max, Plus, Flash
+- **OpenAI/Compatible**: Generic interface
 *   **🔌 Multi-Engine Support**:
     *   **Google Gemini**: Supports 1.5, 2.5, and 3.0 (Preview) series.
     *   **Alibaba Qwen**: Supports Max, Plus, and Flash (DashScope).

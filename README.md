@@ -2,25 +2,24 @@
 
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
 
-# My LLM SDK (生产级)
-一个健壮的、企业级的 Python LLM 交互 SDK。设计时严格遵循 **预算控制**、**双层配置** 和 **自我诊断** 原则。
-> **状态**: 活跃开发中
-> **特性**: 多供应商支持 (OpenAI, Gemini, Qwen), SQLite 预算账本, 网络医生, 动态节点切换。
-## 🚀 核心特性
-*   **🛡️ 预算控制**:
-    *   **预检 (Pre-check)**: 如果超出每日限额，会在请求发生*之前*进行拦截。
-    *   **账本 (Ledger)**: 本地 `sqlite3` (WAL 模式) 记录每一笔交易，支持高并发。
-    *   **动态定价**: 实时估算 Qwen-Max, Gemini 3.0 等模型的费用。
-*   **⚙️ 双层配置架构**:
-    *   `llm.project.yaml`: 提交到 Git。定义合法的模型列表和路由策略。
-    *   `config.yaml`: **仅本地** (Git-ignored)。存储 API Key 和个人端点。
-    *   **智能合并**: 支持 追加 (Policies) / 覆盖 (Models) / 过滤 (Endpoints) 策略。
-    *   `python -m my_llm_sdk.cli doctor`: 自动诊断与美国/中国/新加坡节点的连通性。
-    *   **智能路由**: Qwen 提供商会根据是否能连通 Google，自动在 CN (国内) 和 SG (新加坡) 节点间切换。
-*   **🔌 多引擎支持**:
-    *   **Google Gemini**: 支持 1.5, 2.5, 和 3.0 (Preview) 系列。
-    *   **Alibaba Qwen**: 支持 Max, Plus, 和 Flash (通义千问 DashScope)。
-    *   **OpenAI/Compatible**: 支持通用接口。
+# My LLM SDK
+
+一个 Python SDK，用于调用多家 LLM API（Gemini、Qwen、OpenAI）。
+
+## 😰 痛点
+- **怕忘关循环导致账单爆炸**：调用没限制，跑完发现花了几百块。
+- **配置混乱**：API Key 和项目设置混在一起，容易误提交到 Git。
+- **网络不稳**：国内访问 Gemini 时不时超时或被 429。
+
+## ✅ 解决方案
+- **预算拦截**：每次请求前检查当日消费，超额直接拒绝，不请求 API。
+- **双层配置**：项目规则（Git 提交）与 API Key（本地保留）分离。
+- **自动重试**：遇到超时或 429 自动等待重试，支持 Qwen 国内/海外节点切换。
+
+## 🔌 支持的模型
+- **Google Gemini**: 2.5/3.0 Flash, 2.5/3.0 Pro
+- **Alibaba Qwen**: Max, Plus, Flash (通义千问)
+- **OpenAI/Compatible**: 通用接口
 *   **⏳ 异步与流式 (New in V0.2/0.3)**:
     *   **Async API**: `client.generate_async` 和 `client.stream_async` 支持高并发（每秒 50+ 请求）。
     *   **Streaming**: 完整支持流式输出 (`stream=True`)，且能精准记录 Ledger。
