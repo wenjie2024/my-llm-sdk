@@ -92,6 +92,23 @@ def main():
     gen_parser.add_argument("--prompt", help="Prompt for generation", default="Hello Vibe")
     gen_parser.add_argument("--model", help="Model alias", default="gpt-4")
     
+    # Budget Command (V0.5.0)
+    budget_parser = subparsers.add_parser("budget", help="Budget & Reporting")
+    budget_subparsers = budget_parser.add_subparsers(dest="budget_command", help="Budget actions")
+    
+    # budget status (today)
+    status_parser = budget_subparsers.add_parser("status", help="Show today's spend & status")
+    status_parser.add_argument("--json", action="store_true", help="Output as JSON")
+    
+    # budget report
+    report_parser = budget_subparsers.add_parser("report", help="Show cost trend")
+    report_parser.add_argument("--days", type=int, default=7, help="Number of days")
+    
+    # budget top
+    top_parser = budget_subparsers.add_parser("top", help="Show top consumers")
+    top_parser.add_argument("--by", choices=["provider", "model"], default="model", help="Dimension to group by")
+    top_parser.add_argument("--days", type=int, default=7, help="Number of days")
+
     # Init Command
     init_parser = subparsers.add_parser("init", help="Initialize configuration files")
     
@@ -116,7 +133,7 @@ def main():
     try:
         client = LLMClient(project_config_path=args.project_config, user_config_path=args.user_config)
     except Exception as e:
-        if args.command in ["doctor", "generate"]:
+        if args.command in ["doctor", "generate", "budget"]:
             print(f"❌ Config Error: {e}")
             print("Tip: Run 'python -m my_llm_sdk.cli init' to create config files, or check paths.")
             sys.exit(1)
@@ -131,8 +148,68 @@ def main():
         except Exception as e:
             print(f"Error: {e}")
             sys.exit(1)
+    elif args.command == "budget":
+        from my_llm_sdk.budget.reporter import Reporter
+        import json
+        
+        reporter = Reporter(client.budget.ledger)
+        
+        if args.budget_command == "status":
+            summary = reporter.today_summary()
+            limit = client.config.daily_spend_limit
+            
+            if args.json:
+                data = {
+                    "total_cost": summary.total_cost,
+                    "request_count": summary.request_count,
+                    "total_tokens": summary.total_tokens,
+                    "limit": limit,
+                    "percent_used": (summary.total_cost / limit * 100) if limit > 0 else 0
+                }
+                print(json.dumps(data, indent=2))
+            else:
+                print(f"📊 Today's Budget Status")
+                print(f"------------------------")
+                print(f"💰 Cost:       ${summary.total_cost:.4f} / ${limit:.2f}")
+                print(f"🔢 Requests:   {summary.request_count}")
+                print(f"🔠 Tokens:     {summary.total_tokens}")
+                print(f"⚠️  Errors:     {summary.error_rate:.1%}")
+                
+                if limit > 0:
+                    pct = (summary.total_cost / limit) * 100
+                    bar_len = 20
+                    filled = int(bar_len * (min(pct, 100) / 100))
+                    bar = "█" * filled + "░" * (bar_len - filled)
+                    print(f"\nUsage: [{bar}] {pct:.1f}%")
+
+        elif args.budget_command == "report":
+            trends = reporter.daily_trend(args.days)
+            print(f"📈 Cost Trend (Last {args.days} Days)")
+            print(f"------------------------------")
+            max_cost = max((t.cost for t in trends), default=0)
+            
+            for t in trends:
+                # ASCII Chart
+                bar_len = 0
+                if max_cost > 0:
+                    bar_len = int((t.cost / max_cost) * 30)
+                bar = "#" * bar_len
+                print(f"{t.day} | ${t.cost:.4f} {bar}")
+                
+            total_cost = sum(t.cost for t in trends)
+            print(f"\nTotal Cost: ${total_cost:.4f}")
+
+        elif args.budget_command == "top":
+            tops = reporter.top_consumers(args.by, args.days)
+            print(f"🏆 Top Consumers by {args.by} (Last {args.days} Days)")
+            print(f"{'Name':<25} | {'Cost':<10} | {'Reqs':<5}")
+            print("-" * 45)
+            for t in tops:
+                print(f"{t.key:<25} | ${t.cost:<9.4f} | {t.reqs:<5}")
+
     else:
         parser.print_help()
 
 if __name__ == "__main__":
     main()
+

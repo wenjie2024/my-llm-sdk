@@ -90,6 +90,24 @@ class Ledger:
             conn.execute("CREATE INDEX IF NOT EXISTS idx_timestamp ON transactions(timestamp);")
             conn.execute("CREATE INDEX IF NOT EXISTS idx_trace_id ON transactions(trace_id);")
 
+            # --- V0.5.0 Reporting Schema (Read Model) ---
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS request_facts (
+                    trace_id TEXT PRIMARY KEY,
+                    ts_start INTEGER,
+                    ts_end INTEGER,
+                    provider TEXT,
+                    model TEXT,
+                    profile_id TEXT,
+                    status TEXT,
+                    cost_usd REAL,
+                    input_tokens INTEGER,
+                    output_tokens INTEGER,
+                    total_ms REAL
+                )
+            """)
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_facts_ts ON request_facts(ts_start);")
+
     # --- Sync Legacy API (Maintaining Backward Compatibility) ---
     def record_transaction(self, 
                            tx_id: str, 
@@ -151,6 +169,9 @@ class Ledger:
             json.dumps(ev.usage),
             json.dumps(ev.timing)
         ))
+        
+        # Incremental Sync to facts
+        self._sync_fact(conn, ev.trace_id)
 
     def get_daily_spend(self) -> float:
         """Sync daily spend calc."""
@@ -245,3 +266,70 @@ class Ledger:
                 await self._worker_task
             except asyncio.CancelledError:
                 pass
+
+    # --- Reporting / Fact Table Logic (V0.5.0) ---
+
+    def rebuild_facts(self):
+        """Rebuild request_facts from transactions (Full Sync)."""
+        print("Rebuilding request_facts...")
+        with self._get_conn() as conn:
+            conn.execute("BEGIN TRANSACTION;")
+            conn.execute("DELETE FROM request_facts;")
+            
+            # Find all unique trace_ids
+            cursor = conn.execute("SELECT DISTINCT trace_id FROM transactions WHERE trace_id IS NOT NULL")
+            trace_ids = [r[0] for r in cursor.fetchall()]
+            
+            for tid in trace_ids:
+                self._sync_fact(conn, tid)
+            
+            conn.execute("COMMIT;")
+        print(f"✅ Rebuilt facts for {len(trace_ids)} requests.")
+
+    def _sync_fact(self, conn, trace_id: str):
+        """
+        Merge all events for a trace_id into a single fact row.
+        Logic: 
+        - Start timestamp = min(timestamp)
+        - End timestamp = max(timestamp)
+        - Final status: if any event is 'success' then 'success', else 'error'
+        - Cost: sum of actual costs
+        """
+        if not trace_id: return
+        
+        events = conn.execute("""
+            SELECT timestamp, provider, model, input_tokens, output_tokens, cost, status, timing_json
+            FROM transactions WHERE trace_id = ?
+            ORDER BY timestamp ASC
+        """, (trace_id,)).fetchall()
+        
+        if not events: return
+        
+        ts_start = int(events[0][0] * 1000)
+        ts_end = int(events[-1][0] * 1000)
+        provider = events[0][1]
+        model = events[0][2]
+        
+        total_cost = sum(e[5] or 0.0 for e in events)
+        total_in = sum(e[3] or 0 for e in events)
+        total_out = sum(e[4] or 0 for e in events)
+        
+        # Status priority: if any success, it's success (from user perspective of the request)
+        final_status = 'error'
+        if any(e[6] == 'success' for e in events):
+            final_status = 'success'
+            
+        # Timing (from last event or specific timing logs)
+        total_ms = 0.0
+        for e in events:
+            if e[7]:
+                try:
+                    t = json.loads(e[7])
+                    if 'total' in t: total_ms = t['total'] * 1000
+                except: pass
+
+        conn.execute("""
+            INSERT OR REPLACE INTO request_facts 
+            (trace_id, ts_start, ts_end, provider, model, status, cost_usd, input_tokens, output_tokens, total_ms)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, (trace_id, ts_start, ts_end, provider, model, final_status, total_cost, total_in, total_out, total_ms))
