@@ -1,6 +1,6 @@
 [project]
 name = "my-llm-sdk"
-version = "0.3.5"
+version = "0.5.0"
 description = "Vibe Edition LLM SDK"
 authors = [{name = "Admin", email = "admin@example.com"}]
 readme = "README.md"

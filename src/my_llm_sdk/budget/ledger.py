@@ -303,7 +303,8 @@ class Ledger:
             ORDER BY timestamp ASC
         """, (trace_id,)).fetchall()
         
-        if not events: return
+        if not events: 
+            return
         
         ts_start = int(events[0][0] * 1000)
         ts_end = int(events[-1][0] * 1000)
