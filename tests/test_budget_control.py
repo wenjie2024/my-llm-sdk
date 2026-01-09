@@ -27,7 +27,12 @@ def temp_ledger():
     os.close(fd)
     ledger = Ledger(db_path=path)
     yield ledger
-    os.remove(path)
+    try:
+        os.remove(path)
+    except PermissionError:
+        pass
+    except OSError:
+        pass
 
 def test_ledger_daily_spend(temp_ledger):
     # Empty

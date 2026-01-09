@@ -298,7 +298,7 @@ class Ledger:
         if not trace_id: return
         
         events = conn.execute("""
-            SELECT timestamp, provider, model, input_tokens, output_tokens, cost, status, timing_json
+            SELECT timestamp, provider, model, input_tokens, output_tokens, cost, status, timing_json, event_type
             FROM transactions WHERE trace_id = ?
             ORDER BY timestamp ASC
         """, (trace_id,)).fetchall()
@@ -311,14 +311,30 @@ class Ledger:
         provider = events[0][1]
         model = events[0][2]
         
-        total_cost = sum(e[5] or 0.0 for e in events)
-        total_in = sum(e[3] or 0 for e in events)
-        total_out = sum(e[4] or 0 for e in events)
+        # New Cost Logic: Use the latest Actual (commit/adjust) if available
+        commits = [e for e in events if e[8] in ('commit', 'adjust')]
+        if commits:
+            # Use the latest event in the lifecycle as the source of truth
+            latest = commits[-1]
+            total_cost = latest[5] or 0.0
+            total_in = latest[3] or 0
+            total_out = latest[4] or 0
+        else:
+            # Fallback to sum of estimations if no commit yet
+            total_cost = sum(e[5] or 0.0 for e in events)
+            total_in = sum(e[3] or 0 for e in events)
+            total_out = sum(e[4] or 0 for e in events)
         
-        # Status priority: if any success, it's success (from user perspective of the request)
+        # Status priority
         final_status = 'error'
-        if any(e[6] == 'success' for e in events):
+        statuses = [e[6] for e in events]
+        
+        if any(s in ['success', 'ok'] for s in statuses):
             final_status = 'success'
+        elif any(s in ['error', 'failed'] for s in statuses):
+            final_status = 'error'
+        elif 'running' in statuses:
+            final_status = 'running'
             
         # Timing (from last event or specific timing logs)
         total_ms = 0.0

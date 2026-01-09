@@ -3,7 +3,7 @@ import os
 from typing import Optional, Dict
 from my_llm_sdk.config.loader import load_config
 from my_llm_sdk.budget.controller import BudgetController
-from my_llm_sdk.budget.pricing import calculate_estimated_cost
+from my_llm_sdk.budget.pricing import calculate_estimated_cost, calculate_actual_cost
 from my_llm_sdk.doctor.checker import Doctor
 from my_llm_sdk.doctor.report import print_report
 from my_llm_sdk.providers.base import BaseProvider, EchoProvider
@@ -80,7 +80,7 @@ class LLMClient:
             
         # 2. Pre-check Budget & Rate Limits
         # Estimate cost & tokens
-        estimated_cost = calculate_estimated_cost(model_def.model_id, prompt, max_output_tokens=1000)
+        estimated_cost = calculate_estimated_cost(model_def.model_id, prompt, max_output_tokens=1000, config=self.config)
         
         # Simple token estimation for TPM check (chars / 4)
         estimated_tokens = len(prompt) // 4
@@ -138,11 +138,12 @@ class LLMClient:
                 # FUTURE: Update pricing logic to accept TokenUsage directly.
                 # For now, stick to estimate logic or simple update
                 # Actually, let's just use the estimated cost logic using the RESPONSE CONTENT LENGTH + PROMPT LENGTH
-                pass
+                final_cost = calculate_actual_cost(model_def.model_id, response_obj.usage, self.config)
 
             # Recalculate cost based on actual response content length
             # If we trust estimated_cost for input, we just add output cost
-            final_cost = calculate_estimated_cost(model_def.model_id, prompt + response_obj.content, max_output_tokens=0)
+            if not response_obj.usage:
+                final_cost = calculate_estimated_cost(model_def.model_id, prompt + response_obj.content, max_output_tokens=0, config=self.config)
             
             # Attach timing/meta to ledger? V0.2 extensions support usage_json.
             # We can pass extended metadata if we modify track()
@@ -195,7 +196,7 @@ class LLMClient:
             provider_instance = EchoProvider()
             
         # 2. Pre-check (Estimate)
-        estimated_cost = calculate_estimated_cost(model_def.model_id, prompt, max_output_tokens=1000)
+        estimated_cost = calculate_estimated_cost(model_def.model_id, prompt, max_output_tokens=1000, config=self.config)
         self.budget.check_budget(estimated_cost)
         
         # Check Rate Limits
@@ -244,9 +245,9 @@ class LLMClient:
                 input_tokens = final_usage.input_tokens
                 output_tokens = final_usage.output_tokens
                 # Recalculate cost? For now approximate with estimate logic using full content
-                final_cost = calculate_estimated_cost(model_def.model_id, prompt + accumulated_content, max_output_tokens=0)
+                final_cost = calculate_actual_cost(model_def.model_id, final_usage, self.config)
             else:
-                 final_cost = calculate_estimated_cost(model_def.model_id, prompt + accumulated_content, max_output_tokens=0)
+                 final_cost = calculate_estimated_cost(model_def.model_id, prompt + accumulated_content, max_output_tokens=0, config=self.config)
             
             self.budget.track(
                 provider=provider_name,
@@ -270,7 +271,7 @@ class LLMClient:
             provider_instance = EchoProvider()
             
         # 2. Pre-check Budget & Rate Limits (Async Check)
-        estimated_cost = calculate_estimated_cost(model_def.model_id, prompt, max_output_tokens=1000)
+        estimated_cost = calculate_estimated_cost(model_def.model_id, prompt, max_output_tokens=1000, config=self.config)
         
         # Async check using Ledger cache/query
         await self.budget.acheck_budget(estimated_cost)
@@ -316,9 +317,9 @@ class LLMClient:
              if response_obj.usage:
                  input_tokens = response_obj.usage.input_tokens
                  output_tokens = response_obj.usage.output_tokens
-                 # Recalc cost if needed, skipped for now as per sync logic
+                 final_cost = calculate_actual_cost(model_def.model_id, response_obj.usage, self.config)
              else:
-                 final_cost = calculate_estimated_cost(model_def.model_id, prompt + response_obj.content, max_output_tokens=0)
+                 final_cost = calculate_estimated_cost(model_def.model_id, prompt + response_obj.content, max_output_tokens=0, config=self.config)
              
              await self.budget.atrack(
                  provider=provider_name,
@@ -360,7 +361,7 @@ class LLMClient:
             provider_instance = EchoProvider()
             
         # 2. Pre-check
-        estimated_cost = calculate_estimated_cost(model_def.model_id, prompt, max_output_tokens=1000)
+        estimated_cost = calculate_estimated_cost(model_def.model_id, prompt, max_output_tokens=1000, config=self.config)
         await self.budget.acheck_budget(estimated_cost)
         
         estimated_tokens = len(prompt) // 4
@@ -403,9 +404,9 @@ class LLMClient:
             if final_usage:
                 input_tokens = final_usage.input_tokens
                 output_tokens = final_usage.output_tokens
-                final_cost = calculate_estimated_cost(model_def.model_id, prompt + accumulated_content, max_output_tokens=0)
+                final_cost = calculate_actual_cost(model_def.model_id, final_usage, self.config)
             else:
-                 final_cost = calculate_estimated_cost(model_def.model_id, prompt + accumulated_content, max_output_tokens=0)
+                 final_cost = calculate_estimated_cost(model_def.model_id, prompt + accumulated_content, max_output_tokens=0, config=self.config)
             
             await self.budget.atrack(
                 provider=provider_name,

@@ -83,6 +83,19 @@ python -m my_llm_sdk.cli doctor
 
 ---
 
+## 💰 定价与成本参考
+
+SDK 的计费逻辑以 `llm.project.yaml` 中的配置为准。默认模板已对齐以下官方公开价：
+
+- **Google Gemini**: [Gemini API Pricing](https://ai.google.dev/gemini-api/docs/pricing)
+- **Alibaba Qwen**: [Alibaba Cloud Model Pricing](https://www.alibabacloud.com/help/en/model-studio/model-pricing?spm=a2c63.p38356.help-menu-2400256.d_0_0_3.5b933fd9UZWrpM)
+
+> **注意**：
+> 1. Qwen 价格因区域（国内/国际）不同，请根据实际部署调整配置。
+> 2. Gemini 长文本（>128k）价格通常更高，目前 SDK 采用基础档位估算。
+
+---
+
 ## ✅ 可靠性
 
 - **自动重试**：429/超时退避（可配置最大次数与最大等待时间）
@@ -198,7 +211,7 @@ python -m my_llm_sdk.cli budget top --by model
 - [x] 结构化响应与 Streaming (V0.2)
 - [x] Async 全链路支持 (V0.3)
 - [x] 运维报表与 CLI 工具 (V0.5.0)
-- [ ] V0.5.1+: Pricing Registry (精准计费)
+- [x] V0.5.1+: Pricing Registry (精准计费)
 - [ ] V0.4.0+: 多模态支持 (Vision / Audio)
 - [ ] 发布到 PyPI (`pip install my-llm-sdk`)
 

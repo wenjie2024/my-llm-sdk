@@ -6,6 +6,10 @@ class RoutingPolicy(BaseModel):
     strategy: str  # e.g., "least_latency", "random", "priority"
     params: Dict[str, str] = Field(default_factory=dict)
 
+class ModelPricing(BaseModel):
+    input_per_1m_tokens: float
+    output_per_1m_tokens: float
+
 class ModelDefinition(BaseModel):
     name: str  # e.g., "gpt-4"
     provider: str  # e.g., "openai"
@@ -16,6 +20,9 @@ class ModelDefinition(BaseModel):
     rpm: Optional[int] = None  # Requests Per Minute
     tpm: Optional[int] = None  # Tokens Per Minute
     rpd: Optional[int] = None  # Requests Per Day
+    
+    # Pricing
+    pricing: Optional[ModelPricing] = None
 
 class Endpoint(BaseModel):
     name: str

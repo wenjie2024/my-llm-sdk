@@ -1,6 +1,6 @@
 import pytest
-import respx
-import httpx
+respx = pytest.importorskip("respx")
+httpx = pytest.importorskip("httpx")
 from my_llm_sdk.doctor.checker import Doctor
 from my_llm_sdk.config.models import MergedConfig, Endpoint
 from my_llm_sdk.budget.ledger import Ledger

@@ -1,8 +1,11 @@
-from typing import Dict, Tuple
+from typing import Dict, Tuple, Optional
+from my_llm_sdk.config.models import MergedConfig, ModelDefinition
+from my_llm_sdk.schemas import TokenUsage
 
 # Pricing Table: Cost per 1M tokens (Input, Output) in USD
 # Sources: Official pricing pages (Verified Dec 2025)
 # Note: Prices are approximate and may vary by region/tier.
+# Kept as fallback for models not defined in config.
 PRICING_REGISTRY: Dict[str, Tuple[float, float]] = {
     # OpenAI & Echo (Echo mimics GPT-4 pricing)
     "gpt-4": (30.0, 60.0),
@@ -39,24 +42,52 @@ def estimate_tokens(text: str) -> int:
         return 0
     return len(text) // 3 + 1
 
-def calculate_estimated_cost(model_id: str, prompt: str, max_output_tokens: int = 1000) -> float:
+def _get_pricing_for_model(model_id: str, config: Optional[MergedConfig] = None) -> Tuple[float, float]:
+    """
+    Resolve pricing tuple (input_cost_per_1m, output_cost_per_1m) for a given model ID.
+    Priority:
+    1. Exact match in Config (if config provided)
+    2. Exact match in Registry
+    3. Partial match in Registry
+    4. Default Fallback
+    """
+    # 1. Check Config
+    if config and config.final_model_registry:
+        # Check by user-friendly alias OR actual model_id?
+        # The 'model_id' arg here might be the Alias (e.g. 'gemini-3.0-pro') or ID ('gemini-3-pro-preview').
+        # We should check both.
+        
+        # Check alias keys first
+        if model_id in config.final_model_registry:
+            m_def = config.final_model_registry[model_id]
+            if m_def.pricing:
+                return (m_def.pricing.input_per_1m_tokens, m_def.pricing.output_per_1m_tokens)
+        
+        # Check internal model_ids (iterate)
+        for _, m_def in config.final_model_registry.items():
+            if m_def.model_id == model_id:
+                if m_def.pricing:
+                    return (m_def.pricing.input_per_1m_tokens, m_def.pricing.output_per_1m_tokens)
+                break
+    
+    # 2. Check Registry (Exact)
+    if model_id in PRICING_REGISTRY:
+        return PRICING_REGISTRY[model_id]
+
+    # 3. Check Registry (Partial)
+    for key, val in PRICING_REGISTRY.items():
+        if key in model_id:
+            return val
+            
+    # 4. Fallback
+    return (0.50, 1.50)
+
+def calculate_estimated_cost(model_id: str, prompt: str, max_output_tokens: int = 1000, config: Optional[MergedConfig] = None) -> float:
     """
     Calculate estimated cost for pre-check.
     Return value is in USD.
     """
-    prices = None
-    
-    # Simple matching logic
-    for key, val in PRICING_REGISTRY.items():
-        if key in model_id:
-            prices = val
-            break
-            
-    if not prices:
-        # Default fallback (e.g. assume average GPT-3.5 price)
-        prices = (0.50, 1.50) 
-    
-    input_price_per_1m, output_price_per_1m = prices
+    input_price_per_1m, output_price_per_1m = _get_pricing_for_model(model_id, config)
     
     input_tokens = estimate_tokens(prompt)
     
@@ -66,3 +97,17 @@ def calculate_estimated_cost(model_id: str, prompt: str, max_output_tokens: int 
     
     # Total estimate = Input + Expected Output
     return estimated_input_cost + estimated_output_cost
+
+def calculate_actual_cost(model_id: str, usage: TokenUsage, config: Optional[MergedConfig] = None) -> float:
+    """
+    Calculate actual cost based on real usage.
+    """
+    if not usage:
+        return 0.0
+        
+    input_price_per_1m, output_price_per_1m = _get_pricing_for_model(model_id, config)
+    
+    input_cost = (usage.input_tokens / 1_000_000) * input_price_per_1m
+    output_cost = (usage.output_tokens / 1_000_000) * output_price_per_1m
+    
+    return input_cost + output_cost
