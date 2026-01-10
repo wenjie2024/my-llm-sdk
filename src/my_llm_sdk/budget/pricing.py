@@ -140,3 +140,100 @@ def calculate_actual_cost(model_id: str, usage: TokenUsage, config: Optional[Mer
     output_cost = (usage.output_tokens / 1_000_000) * output_price_per_1m
     
     return input_cost + output_cost
+
+
+def _get_model_pricing_object(model_id: str, config: Optional[MergedConfig] = None):
+    """
+    Get the full ModelPricing object for a model (for multimodal fields).
+    Returns None if not found in config.
+    """
+    if not config or not config.final_model_registry:
+        return None
+        
+    # Check by alias
+    if model_id in config.final_model_registry:
+        return config.final_model_registry[model_id].pricing
+        
+    # Check by internal model_id
+    for _, m_def in config.final_model_registry.items():
+        if m_def.model_id == model_id:
+            return m_def.pricing
+            
+    return None
+
+
+# Default multimodal pricing fallbacks (USD)
+DEFAULT_MULTIMODAL_PRICING = {
+    "per_image_input": 0.001,
+    "per_image_output": 0.04,
+    "per_audio_second_input": 0.0001,
+    "per_audio_second_output": 0.0005,
+    "per_output_character": 0.00001,  # Per TTS input character
+}
+
+
+def calculate_multimodal_cost(
+    model_id: str,
+    usage: TokenUsage,
+    config: Optional[MergedConfig] = None
+) -> float:
+    """
+    Calculate total cost including multimodal components.
+    
+    Formula:
+    Total = TokenCost + (ImagesIn * ImageInputRate) + (ImagesOut * ImageOutputRate)
+          + (AudioSecsIn * AudioInputRate) + (AudioSecsOut * AudioOutputRate)
+          + (TTSChars * CharRate)
+    
+    Args:
+        model_id: Model identifier
+        usage: TokenUsage with multimodal fields populated
+        config: Merged configuration with pricing info
+        
+    Returns:
+        Total cost in USD
+    """
+    if not usage:
+        return 0.0
+    
+    # 1. Base token cost
+    token_cost = calculate_actual_cost(model_id, usage, config)
+    
+    # 2. Get multimodal pricing
+    pricing = _get_model_pricing_object(model_id, config)
+    
+    # Resolve rates with fallbacks
+    per_image_input = DEFAULT_MULTIMODAL_PRICING["per_image_input"]
+    per_image_output = DEFAULT_MULTIMODAL_PRICING["per_image_output"]
+    per_audio_sec_input = DEFAULT_MULTIMODAL_PRICING["per_audio_second_input"]
+    per_audio_sec_output = DEFAULT_MULTIMODAL_PRICING["per_audio_second_output"]
+    per_char = DEFAULT_MULTIMODAL_PRICING["per_output_character"]
+    
+    if pricing:
+        per_image_input = pricing.per_image_input or per_image_input
+        per_image_output = pricing.per_image_output or per_image_output
+        per_audio_sec_input = pricing.per_audio_second_input or per_audio_sec_input
+        per_audio_sec_output = pricing.per_audio_second_output or per_audio_sec_output
+        per_char = pricing.per_output_character or per_char
+    
+    # 3. Calculate multimodal costs
+    # Input side
+    image_input_cost = usage.images_processed * per_image_input
+    audio_input_cost = usage.audio_seconds * per_audio_sec_input
+    
+    # Output side
+    image_output_cost = usage.images_generated * per_image_output
+    audio_output_cost = usage.audio_seconds_generated * per_audio_sec_output
+    tts_char_cost = usage.tts_input_characters * per_char
+    
+    # 4. Sum all components
+    total = (
+        token_cost
+        + image_input_cost
+        + audio_input_cost
+        + image_output_cost
+        + audio_output_cost
+        + tts_char_cost
+    )
+    
+    return total

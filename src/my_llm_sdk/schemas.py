@@ -1,5 +1,46 @@
 from dataclasses import dataclass, field
 from typing import Dict, Optional, Any, List, Union, Literal
+from typing_extensions import TypedDict
+from enum import Enum
+
+# --- P1: Task Type Enumeration ---
+
+class TaskType(str, Enum):
+    """Explicit task types for multimodal routing."""
+    TEXT_GENERATION = "text_generation"
+    IMAGE_GENERATION = "image_generation"
+    TTS = "tts"
+    ASR = "asr"
+    VISION = "vision"
+    OMNI = "omni"
+
+
+# --- P1: Generation Configuration ---
+
+class GenConfig(TypedDict, total=False):
+    """Configuration for multimodal generation requests."""
+    # [Required] Explicit task type for routing
+    task: TaskType
+    
+    # [Optional] Response modalities (auxiliary validation)
+    response_modalities: List[str]  # ["TEXT", "AUDIO", "IMAGE"]
+    
+    # Image generation parameters
+    image_size: str                 # "1024x1024", "landscape", "portrait"
+    image_count: int                # Number of images to generate
+    
+    # Audio parameters
+    voice_config: Dict[str, Any]    # {"voice_name": "...", "rate": 1.0}
+    audio_format: str               # "wav", "mp3"
+    
+    # Engineering parameters
+    persist_media: bool             # Auto-save media to local files (default True)
+    persist_dir: str                # Directory to save media files
+    idempotency_key: str            # Prevent duplicate billing on retries
+    
+    # Provider-specific passthrough
+    extra_options: Dict[str, Any]
+
 
 # --- Multimodal Input Abstractions ---
 
@@ -17,6 +58,10 @@ class ContentPart:
     inline_data: Optional[bytes] = None  # Raw binary data (will be base64 encoded for API)
     mime_type: Optional[str] = None      # e.g., "image/png", "audio/mp3"
     file_uri: Optional[str] = None       # Remote URI (gs://, https://, etc.)
+    
+    # P1: Media persistence fields
+    local_path: Optional[str] = None     # Path to locally saved file
+    metadata: Dict[str, Any] = field(default_factory=dict)  # {"duration_seconds": 12.5, "width": 1024}
 
 
 # Type alias for unified content input
@@ -39,6 +84,18 @@ class TokenUsage:
     input_tokens: int = 0
     output_tokens: int = 0
     total_tokens: int = 0
+    
+    # V0.4.0 Multimodal Input Tracking
+    images_processed: int = 0
+    audio_seconds: float = 0.0
+    
+    # P1: Multimodal Output Tracking (billing-critical)
+    images_generated: int = 0              # Output images count
+    audio_seconds_generated: float = 0.0   # Output audio duration (TTS)
+    tts_input_characters: int = 0          # TTS input text length (some models bill by chars)
+    
+    # Extensible metadata
+    extra_info: Dict[str, Any] = field(default_factory=dict)
 
 @dataclass
 class GenerationResponse:
@@ -50,6 +107,18 @@ class GenerationResponse:
     finish_reason: Optional[str] = None  # 'stop', 'length', 'filter', etc.
     trace_id: Optional[str] = None
     timing: Dict[str, float] = field(default_factory=dict)  # {'ttft': 0.1, 'total': 2.5}
+    
+    # V0.4.0 Multimodal Output
+    media_parts: List[ContentPart] = field(default_factory=list)
+
+    @property
+    def images(self) -> List[bytes]:
+        return [p.inline_data for p in self.media_parts if p.type == "image" and p.inline_data]
+
+    @property
+    def audio(self) -> Optional[bytes]:
+        parts = [p.inline_data for p in self.media_parts if p.type == "audio" and p.inline_data]
+        return parts[0] if parts else None
 
     def __str__(self):
         return self.content  # Allow easy printing: print(response)

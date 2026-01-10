@@ -4,6 +4,13 @@ from google.genai import types
 import time
 import base64
 from typing import Iterator, AsyncIterator, Optional, Any, Dict, List
+import io
+try:
+    from PIL import Image
+    HAS_PILLOW = True
+except ImportError:
+    HAS_PILLOW = False
+
 from .base import BaseProvider
 from my_llm_sdk.schemas import (
     GenerationResponse, TokenUsage, StreamEvent,
@@ -68,6 +75,43 @@ class GeminiProvider(BaseProvider):
             output_tokens=o_tokens,
             total_tokens=t_tokens
         )
+
+    def _process_image_response(self, raw_bytes: bytes, optimize: bool = True) -> bytes:
+        """
+        Optimizes image bytes:
+        1. Convert to JPEG (Quality 85)
+        2. Resize if width > 1920
+        """
+        if not optimize or not raw_bytes or not HAS_PILLOW:
+            return raw_bytes
+            
+        try:
+            # Threshold: only optimize if > 500KB to save CPU for small icons
+            if len(raw_bytes) < 500 * 1024:
+                return raw_bytes
+
+            with io.BytesIO(raw_bytes) as input_io:
+                img = Image.open(input_io)
+                
+                # 1. Resize if needed
+                max_width = 1920
+                if img.width > max_width:
+                    aspect_ratio = img.height / img.width
+                    new_height = int(max_width * aspect_ratio)
+                    img = img.resize((max_width, new_height), Image.Resampling.LANCZOS)
+                
+                # 2. Convert to RGB (if RGBA/P)
+                if img.mode in ("RGBA", "P"):
+                    img = img.convert("RGB")
+                
+                # 3. Save as JPEG
+                with io.BytesIO() as output_io:
+                    img.save(output_io, format="JPEG", quality=85)
+                    return output_io.getvalue()
+        except Exception:
+            # Fallback to original if any error occurs
+            return raw_bytes
+
     
     def _build_config(self, kwargs: Dict[str, Any]) -> Optional[types.GenerateContentConfig]:
         """Constructs GenerateContentConfig from kwargs."""
@@ -76,18 +120,21 @@ class GeminiProvider(BaseProvider):
 
         config_params = {}
         
-        if 'max_output_tokens' in kwargs:
-            config_params['max_output_tokens'] = kwargs['max_output_tokens']
-        if 'temperature' in kwargs:
-            config_params['temperature'] = kwargs['temperature']
-        if 'top_p' in kwargs:
-            config_params['top_p'] = kwargs['top_p']
-        if 'top_k' in kwargs:
-            config_params['top_k'] = kwargs['top_k']
-        if 'stop_sequences' in kwargs:
-            config_params['stop_sequences'] = kwargs['stop_sequences']
-        if 'response_mime_type' in kwargs:
-            config_params['response_mime_type'] = kwargs['response_mime_type']
+        # Standard params
+        for key in ['max_output_tokens', 'temperature', 'top_p', 'top_k', 'stop_sequences', 'response_mime_type']:
+            if key in kwargs:
+                config_params[key] = kwargs[key]
+        
+        # V0.4.0 Multimodal params
+        if 'response_modalities' in kwargs:
+            config_params['response_modalities'] = kwargs['response_modalities']
+            
+        # Image Generation specific
+        if 'image_size' in kwargs or 'aspect_ratio' in kwargs:
+            img_config = {}
+            if 'image_size' in kwargs: img_config['image_size'] = kwargs['image_size']
+            if 'aspect_ratio' in kwargs: img_config['aspect_ratio'] = kwargs['aspect_ratio']
+            config_params['image_generation_config'] = types.ImageGenerationConfig(**img_config)
 
         if not config_params:
             return None
@@ -110,8 +157,32 @@ class GeminiProvider(BaseProvider):
                     config=config
                 )
                 
-                content = response.text
+                # Extract multimodal response
+                text_content = ""
+                media_parts = []
+                
+                if response.candidates:
+                    for part in response.candidates[0].content.parts:
+                        if part.text:
+                            text_content += part.text
+                        elif part.inline_data:
+                            # Map back to ContentPart
+                            m = part.inline_data.mime_type or ""
+                            # Simple heuristic for type
+                            p_type = "image"
+                            if "audio" in m: p_type = "audio"
+                            elif "video" in m: p_type = "video"
+                            
+                            media_parts.append(ContentPart(
+                                type=p_type,
+                                inline_data=part.inline_data.data,
+                                mime_type=m
+                            ))
+
                 usage = self._extract_usage(response)
+                
+                # Track quantities
+                usage.images_processed = sum(1 for p in normalize_content(contents) if p.type == "image")
                 
                 finish_reason = "unknown"
                 if response.candidates:
@@ -120,12 +191,13 @@ class GeminiProvider(BaseProvider):
                     
                 t1 = time.time()
                 return GenerationResponse(
-                    content=content,
+                    content=text_content,
                     model=model_id,
                     provider="google",
                     usage=usage,
                     finish_reason=finish_reason,
-                    timing={"total": t1 - t0}
+                    timing={"total": t1 - t0},
+                    media_parts=media_parts
                 )
             except errors.APIError as e:
                 raise RuntimeError(f"Gemini API Error [{e.code}]: {e.message}")

@@ -12,6 +12,8 @@ model_registry:
     pricing:
       input_per_1m_tokens: 10.0
       output_per_1m_tokens: 30.0
+  
+  # Gemini Models with Multimodal Pricing
   gemini-2.5-flash:
     name: gemini-2.5-flash
     provider: google
@@ -21,6 +23,11 @@ model_registry:
     pricing:
       input_per_1m_tokens: 0.30
       output_per_1m_tokens: 2.50
+      # Image: ~1290 tokens/image * $0.30/1M = $0.00039, conservative $0.001
+      per_image_input: 0.001
+      # Audio: $0.70/1M tokens, ~50 tokens/sec = $0.000035/sec
+      per_audio_second_input: 0.00004
+  
   gemini-2.5-pro:
     name: gemini-2.5-pro
     provider: google
@@ -30,6 +37,9 @@ model_registry:
     pricing:
       input_per_1m_tokens: 1.25
       output_per_1m_tokens: 10.00
+      per_image_input: 0.002
+      per_audio_second_input: 0.0001
+  
   gemini-3.0-flash:
     name: gemini-3.0-flash
     provider: google
@@ -39,6 +49,12 @@ model_registry:
     pricing:
       input_per_1m_tokens: 0.50
       output_per_1m_tokens: 3.00
+      per_image_input: 0.001
+      # Native Audio: $1.00/1M tokens for audio input
+      per_audio_second_input: 0.00005
+      # TTS output: $12.00/1M tokens
+      per_audio_second_output: 0.0006
+  
   gemini-3.0-pro:
     name: gemini-3.0-pro
     provider: google
@@ -48,6 +64,10 @@ model_registry:
     pricing:
       input_per_1m_tokens: 2.00
       output_per_1m_tokens: 12.00
+      per_image_input: 0.003
+      per_audio_second_input: 0.0002
+  
+  # Qwen Models with Multimodal Pricing
   qwen-max:
     name: qwen-max
     provider: dashscope
@@ -56,11 +76,9 @@ model_registry:
     tpm: 100000
     rpd: 2000
     pricing:
-      # Note: Price valid for Mainland China (Public Cloud) or specific contract.
-      # User noted: Global is 0.345/1.377, Int'l is 1.6/6.4. 
-      # Configured 1.2/6.0 is approx Int'l. Leaving as is for conservative estimate.
       input_per_1m_tokens: 1.20
       output_per_1m_tokens: 6.00
+  
   qwen-plus:
     name: qwen-plus
     provider: dashscope
@@ -70,6 +88,7 @@ model_registry:
     pricing:
       input_per_1m_tokens: 0.40
       output_per_1m_tokens: 1.20
+  
   qwen-flash:
     name: qwen-flash
     provider: dashscope
@@ -79,6 +98,46 @@ model_registry:
     pricing:
       input_per_1m_tokens: 0.05
       output_per_1m_tokens: 0.40
+  
+  # Qwen Vision Model (Multimodal)
+  qwen-vl-max:
+    name: qwen-vl-max
+    provider: dashscope
+    model_id: qwen-vl-max
+    rpm: 300
+    tpm: 500000
+    pricing:
+      input_per_1m_tokens: 0.80
+      output_per_1m_tokens: 2.40
+      # Image: ~1000 tokens/image * $0.80/1M = $0.0008
+      per_image_input: 0.0008
+  
+  # Qwen Audio Model (Multimodal)
+  qwen-audio-turbo:
+    name: qwen-audio-turbo
+    provider: dashscope
+    model_id: qwen-audio-turbo
+    rpm: 300
+    tpm: 500000
+    pricing:
+      input_per_1m_tokens: 0.70
+      output_per_1m_tokens: 2.10
+      # Audio: token-based, ~$0.70/1M, estimate 50 tokens/sec
+      per_audio_second_input: 0.000035
+  
+  # Qwen Omni Model (Text + Image + Audio + Video)
+  qwen-omni:
+    name: qwen-omni
+    provider: dashscope
+    model_id: qwen2.5-omni-7b
+    rpm: 300
+    tpm: 500000
+    pricing:
+      input_per_1m_tokens: 0.70
+      output_per_1m_tokens: 2.10
+      per_image_input: 0.0007
+      per_audio_second_input: 0.000035
+  
   default:
     name: default
     provider: google
@@ -88,6 +147,9 @@ model_registry:
     pricing:
       input_per_1m_tokens: 1.25
       output_per_1m_tokens: 10.00
+      per_image_input: 0.002
+      per_audio_second_input: 0.0001
+
 allowed_regions:
 - us
 - eu
@@ -96,3 +158,4 @@ allowed_regions:
 - sg
 allow_logging: true
 budget_strict_mode: true
+

@@ -9,6 +9,15 @@ class RoutingPolicy(BaseModel):
 class ModelPricing(BaseModel):
     input_per_1m_tokens: float
     output_per_1m_tokens: float
+    
+    # V0.4.0 Multimodal Pricing (Optional)
+    per_image_input: Optional[float] = None      # USD per input image
+    per_image_output: Optional[float] = None     # USD per output image (image generation)
+    per_audio_second_input: Optional[float] = None   # USD per second of input audio
+    per_audio_second_output: Optional[float] = None  # USD per second of output audio (TTS)
+    
+    # P1: TTS character-based billing (some models bill by input text length)
+    per_output_character: Optional[float] = None  # USD per character for TTS input text
 
 class ModelDefinition(BaseModel):
     name: str  # e.g., "gpt-4"

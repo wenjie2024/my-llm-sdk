@@ -84,6 +84,10 @@ class LLMClient:
         # 6. Init Resilience Manager [NEW]
         from my_llm_sdk.utils.resilience import RetryManager
         self.retry_manager = RetryManager(self.config.resilience)
+        
+        # 7. Init Voice Service [P1]
+        from my_llm_sdk.services.voice import VoiceService
+        self.voice = VoiceService(self)
 
     def generate(
         self, 
