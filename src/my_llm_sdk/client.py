@@ -95,7 +95,8 @@ class LLMClient:
         model_alias: str = "default", 
         full_response: bool = False,
         *,
-        contents: ContentInput = None
+        contents: ContentInput = None,
+        config: 'GenConfig' = None
     ) -> Union[str, GenerationResponse]:
         """
         Main entry point for generation.
@@ -103,6 +104,13 @@ class LLMClient:
         2. Check budget & rate limits
         3. Call provider (with Retry)
         4. Track cost
+        
+        Args:
+            prompt: Text prompt (backward compatible)
+            model_alias: Model alias from registry
+            full_response: Return full GenerationResponse or just content string
+            contents: Multimodal content input
+            config: GenConfig for multimodal task configuration
         """
         # 0. Resolve input (backward compatible)
         resolved_contents = _resolve_contents(prompt, contents)
