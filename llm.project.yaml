@@ -4,6 +4,11 @@ routing_policies:
   strategy: priority
   params:
     priority_list: azure,openai
+
+# Project-level settings (B+A config defaults)
+settings:
+  optimize_images: true  # Convert PNG to JPEG for smaller files (can be overridden per-request)
+
 model_registry:
   gpt-4:
     name: gpt-4
@@ -93,7 +98,7 @@ model_registry:
   imagen-4.0-generate:
     name: imagen-4.0-generate
     provider: google
-    model_id: imagen-4.0-generate
+    model_id: imagen-4.0-generate-001
     rpm: 60
     tpm: 50000
     pricing:
@@ -233,6 +238,32 @@ model_registry:
       input_per_1m_tokens: 0.0
       output_per_1m_tokens: 0.0
       per_audio_second_input: 0.00003  # Per second of input audio
+
+  # Qwen Voice Cloning Model
+  cosyvoice-v1:
+    name: cosyvoice-v1
+    provider: dashscope
+    model_id: cosyvoice-v1
+    rpm: 50
+    tpm: 50000
+    pricing:
+      input_per_1m_tokens: 0.0
+      output_per_1m_tokens: 0.0
+      per_audio_second_output: 0.0005 # Estimate
+      per_output_character: 0.00002
+
+  # Qwen Realtime VC (Verified for Clone)
+  qwen-tts-realtime:
+    name: qwen-tts-realtime
+    provider: dashscope
+    model_id: qwen3-tts-vc-realtime-2025-11-27
+    rpm: 50
+    tpm: 50000
+    pricing:
+      input_per_1m_tokens: 0.0
+      output_per_1m_tokens: 0.0
+      per_audio_second_output: 0.0005
+      per_output_character: 0.00002
   
   default:
     name: default

@@ -40,6 +40,9 @@ class GenConfig(TypedDict, total=False):
     
     # Provider-specific passthrough
     extra_options: Dict[str, Any]
+    
+    # Image optimization (B+A config pattern)
+    optimize_images: bool  # Convert PNG to JPEG (default True from project config)
 
 
 # --- Multimodal Input Abstractions ---

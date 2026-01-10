@@ -162,7 +162,18 @@ class LLMClient:
             
             # Define the operation to retry
             def _op():
-                return provider_instance.generate(model_def.model_id, resolved_contents, api_key)
+                # P1: Resolve optimize_images (B+A pattern)
+                effective_config = dict(config) if config else {}
+                if effective_config.get("optimize_images") is None:
+                    project_settings = self.config._project_config.get("settings", {})
+                    effective_config["optimize_images"] = project_settings.get("optimize_images", True)
+                
+                return provider_instance.generate(
+                    model_id=model_def.model_id, 
+                    contents=resolved_contents, 
+                    api_key=api_key,
+                    config=effective_config
+                )
             
             # Decorate it manually
             retriable_op = self.retry_manager.retry_policy(_op)
@@ -180,25 +191,11 @@ class LLMClient:
             if response_obj.usage:
                 input_tokens = response_obj.usage.input_tokens
                 output_tokens = response_obj.usage.output_tokens
-                
-                # Re-calculate based on actual tokens
-                # We need a pricing calculator that accepts token counts
-                # For now, we reuse calculate_estimated_cost but with "tokens * 4" length approximation 
-                # or better: we trust the provider? 
-                # The pricing module handles price per 1k chars/tokens. 
-                # Let's approximate back to chars for the pricing function: tokens * 4
-                
-                # FUTURE: Update pricing logic to accept TokenUsage directly.
-                # For now, stick to estimate logic or simple update
-                # Actually, let's just use the estimated cost logic using the RESPONSE CONTENT LENGTH + PROMPT LENGTH
                 final_cost = calculate_actual_cost(model_def.model_id, response_obj.usage, self.config)
 
             # Recalculate cost based on actual response content length
             if not response_obj.usage:
                 final_cost = calculate_estimated_cost(model_def.model_id, text_for_estimation + response_obj.content, max_output_tokens=0, config=self.config)
-            
-            # Attach timing/meta to ledger? V0.2 extensions support usage_json.
-            # We can pass extended metadata if we modify track()
             
             self.budget.track(
                 provider=provider_name,
@@ -209,13 +206,24 @@ class LLMClient:
                 output_tokens=output_tokens
             )
             
+            # 5. Persist Media [P2]
+            # Default to True unless explicitly disabled
+            should_persist = True
+            persist_dir = None
+            if config:
+                should_persist = config.get('persist_media', True)
+                persist_dir = config.get('persist_dir')
+            
+            if should_persist and response_obj.media_parts:
+                self._persist_media(response_obj, persist_dir)
+            
         except Exception as e:
             status = 'failed'
-            # Track failure cost (usually 0, or estimated input cost if provider charged)
+            # Track failure cost
             self.budget.track(
                 provider=provider_name,
                 model=model_def.model_id,
-                cost=0.0, # Failures don't cost? or should we count input? Usually 0 for API errors.
+                cost=0.0,
                 status=status
             )
             raise e
@@ -226,6 +234,30 @@ class LLMClient:
             return response_obj
         else:
             return response_obj.content
+
+    def _persist_media(self, response: GenerationResponse, save_dir: Optional[str] = None):
+        """Helper to save media parts to local filesystem."""
+        from my_llm_sdk.utils.media import save_artifact
+        import datetime
+        
+        if not save_dir:
+            # Default: outputs/YYYYMMDD
+            date_str = datetime.date.today().strftime("%Y%m%d")
+            save_dir = os.path.join(os.getcwd(), "outputs", date_str)
+            
+        for part in response.media_parts:
+            if part.inline_data:
+                # Use provider/model as prefix
+                prefix = f"{response.provider}_{response.model.split('/')[-1]}_{part.type}"
+                
+                saved_path = save_artifact(
+                    data=part.inline_data,
+                    mime_type=part.mime_type or "application/octet-stream",
+                    save_dir=save_dir,
+                    filename_prefix=prefix
+                )
+                part.local_path = saved_path
+
 
 
     def stream(
@@ -323,7 +355,8 @@ class LLMClient:
         model_alias: str = "default", 
         full_response: bool = False,
         *,
-        contents: ContentInput = None
+        contents: ContentInput = None,
+        config: 'GenConfig' = None
     ) -> Union[str, GenerationResponse]:
         """Async version of generate."""
         # 0. Resolve input
@@ -360,11 +393,13 @@ class LLMClient:
         try:
              api_key = self.config.api_keys.get(provider_name)
              
-             # Reuse Retry Manager logic?
-             # RetryManager supports async decorators.
-             
              async def _op():
-                 return await provider_instance.generate_async(model_def.model_id, resolved_contents, api_key)
+                 return await provider_instance.generate_async(
+                     model_id=model_def.model_id, 
+                     contents=resolved_contents, 
+                     api_key=api_key,
+                     config=config
+                 )
              
              retriable_op = self.retry_manager.retry_policy(_op)
              response_obj = await retriable_op()
@@ -389,6 +424,17 @@ class LLMClient:
                  input_tokens=input_tokens,
                  output_tokens=output_tokens
              )
+             
+             # 5. Persist Media [P2]
+             should_persist = True
+             persist_dir = None
+             if config:
+                 should_persist = config.get('persist_media', True)
+                 persist_dir = config.get('persist_dir')
+             
+             if should_persist and response_obj.media_parts:
+                 # Run in thread to allow non-blocking save
+                 await asyncio.to_thread(self._persist_media, response_obj, persist_dir)
              
         except Exception as e:
             status = 'failed'

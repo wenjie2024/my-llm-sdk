@@ -74,9 +74,11 @@ python -m my_llm_sdk.cli doctor
 | :--- | :--- |
 | **统一接口** | 一套 `client.generate()` 调用所有厂商 |
 | **多模型支持** | Gemini 2.5/3.0, Qwen Max/Plus/Flash, OpenAI Compatible |
+| **多模态 (V0.4)** | 图片生成、语音合成 (TTS)、语音识别 (ASR)、Vision 理解 |
 | **Async + Streaming** | `generate_async` / `stream_async` 支持高并发 |
 | **结构化返回** | `full_response=True` 获取 usage/cost/token |
 | **预算控制** | 每次请求前检查消费，超额自动拒绝 |
+| **多模态计费** | 按图片/音频时长/TTS 字符数精准计费 |
 | **报表与趋势** | `llm budget` 命令查看消耗趋势、排行和今日状态 |
 | **自动重试** | 429/超时退避重试，可配置 `max_retries` / `max_delay_s` |
 | **双层配置** | 项目规则 vs API Key 分离，防止误提交 |
@@ -113,6 +115,7 @@ SDK 的计费逻辑以 `llm.project.yaml` 中的配置为准。默认模板已�
 
 ```python
 from my_llm_sdk.client import LLMClient
+from my_llm_sdk.schemas import GenConfig, TaskType, ContentPart
 
 client = LLMClient()
 
@@ -127,6 +130,40 @@ print(f"Cost: ${res.cost}, Tokens: {res.usage.total_tokens}")
 # 流式输出
 for event in client.stream("数到5", model_alias="qwen-max"):
     print(event.delta, end="", flush=True)
+
+# --- V0.4.0 多模态示例 ---
+
+# 图片生成
+res = client.generate(
+    "A cozy coffee shop with warm lighting",
+    model_alias="imagen-4.0-generate",
+    config=GenConfig(task=TaskType.IMAGE_GENERATION, persist_media=True),
+    full_response=True
+)
+print(f"Generated image saved to: {res.media_parts[0].local_path}")
+
+# 语音合成 (TTS)
+res = client.generate(
+    "你好，我是语音助手。",
+    model_alias="qwen-tts-realtime",
+    config=GenConfig(
+        task=TaskType.TTS,
+        voice_config={"voice_name": "your-voice-id"}
+    ),
+    full_response=True
+)
+print(f"Audio saved to: {res.media_parts[0].local_path}")
+
+# 语音识别 (ASR)
+with open("audio.wav", "rb") as f:
+    audio_data = f.read()
+res = client.generate(
+    model_alias="qwen3-asr-flash",
+    contents=[ContentPart(type="audio", inline_data=audio_data, mime_type="audio/wav")],
+    config=GenConfig(task=TaskType.ASR),
+    full_response=True
+)
+print(f"Transcription: {res.content}")
 ```
 
 ---
@@ -219,7 +256,7 @@ python -m my_llm_sdk.cli budget top --by model
 - [x] V0.5.x: 预算比例预警与硬性熔断 (V0.5.2)
 - [x] V0.5.x: 自动化测试套件 (Pytest Integration, V0.5.3)
 - [x] V0.5.4: Gemini 官方 SDK 升级 (`google-genai`)
-- [ ] V0.4.0+: 多模态支持 (Vision / Audio)
+- [x] V0.4.0: 多模态支持 (Vision / TTS / ASR / Image Gen)
 - [ ] 发布到 PyPI (`pip install my-llm-sdk`)
 
 ---

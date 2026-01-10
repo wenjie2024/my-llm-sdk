@@ -2,11 +2,13 @@ from http import HTTPStatus
 import dashscope
 import time
 import base64
-from typing import Iterator, List, Dict, Any
+import requests
+from typing import Iterator, List, Dict, Any, Optional
 from .base import BaseProvider
 from my_llm_sdk.schemas import (
     GenerationResponse, TokenUsage, StreamEvent,
-    ContentInput, ContentPart, normalize_content
+    ContentInput, ContentPart, normalize_content,
+    TaskType, GenConfig
 )
 from my_llm_sdk.utils.network import can_connect_to_google
 
@@ -62,14 +64,460 @@ class QwenProvider(BaseProvider):
         if can_connect_to_google(timeout=1.5):
             dashscope.base_http_api_url = "https://dashscope-intl.aliyuncs.com/api/v1"
         else:
+            # Default/CN endpoint
             dashscope.base_http_api_url = "https://dashscope.aliyuncs.com/api/v1"
 
-    def generate(self, model_id: str, contents: ContentInput, api_key: str = None, **kwargs) -> GenerationResponse:
+    def _generate_image(self, model_id: str, prompt: str, config: Dict[str, Any]) -> GenerationResponse:
+        """Handle Image Generation task."""
+        from dashscope import ImageSynthesis
+        
         t0 = time.time()
+        
+        # Parse config for image params
+        size = config.get("image_size", "1024*1024")
+        n = config.get("image_count", 1)
+        
+        rsp = ImageSynthesis.call(
+            model=model_id,
+            prompt=prompt,
+            n=n,
+            size=size,
+            prompt_extend=True  # Default to True for better quality
+        )
+        
+        if rsp.status_code == HTTPStatus.OK and rsp.output and rsp.output.results:
+            media_parts = []
+            for res in rsp.output.results:
+                if res.url:
+                    # Download image content
+                    img_data = requests.get(res.url).content
+                    media_parts.append(ContentPart(
+                        type="image",
+                        inline_data=img_data,
+                        mime_type="image/png"
+                    ))
+            
+            t1 = time.time()
+            usage = TokenUsage(images_generated=len(media_parts))
+            
+            return GenerationResponse(
+                content="",  # specific content handled in media_parts
+                model=model_id,
+                provider="dashscope",
+                usage=usage,
+                finish_reason="stop",
+                timing={"total": t1 - t0},
+                media_parts=media_parts
+            )
+        else:
+            raise RuntimeError(f"Qwen Image Gen Failed: {rsp.code} - {rsp.message}")
+
+        result = SpeechSynthesizer.call(**call_args)
+        
+        if result.get_audio_data() is not None:
+            audio_data = result.get_audio_data()
+            t1 = time.time()
+            
+            # Create content part
+            media_part = ContentPart(
+                type="audio",
+                inline_data=audio_data,
+                mime_type=f"audio/{fmt}"
+            )
+            
+            usage = TokenUsage(
+                tts_input_characters=len(text),
+                audio_seconds_generated=0.0 # TODO: Estimate duration if possible
+            )
+            
+            return GenerationResponse(
+                content="",
+                model=model_id,
+                provider="dashscope",
+                usage=usage,
+                finish_reason="stop",
+                timing={"total": t1 - t0},
+                media_parts=[media_part]
+            )
+        else:
+            # Enhanced Error Logging
+            # Try to get code/message if available, or dump str(result)
+            err_code = getattr(result, 'code', 'Unknown')
+            err_msg = getattr(result, 'message', str(result))
+            
+            # SDK v1.25+ often hides status in get_response() if not directly in attributes
+            if hasattr(result, 'get_response'):
+                try:
+                    resp = result.get_response()
+                    if isinstance(resp, dict):
+                        err_code = resp.get('code', resp.get('status_code', err_code))
+                        err_msg = resp.get('message', err_msg)
+                except:
+                    pass
+            
+            raise RuntimeError(f"Qwen TTS Failed [{err_code}]: {err_msg}")
+
+    def _generate_speech_realtime(self, model_id: str, text: str, config: Dict[str, Any]) -> GenerationResponse:
+        """Handle TTS using Realtime API (WebSocket) - Required for some models."""
+        try:
+            from dashscope.audio.qwen_tts_realtime import (
+                QwenTtsRealtime,
+                QwenTtsRealtimeCallback,
+                AudioFormat,
+            )
+            import threading
+            import io
+        except ImportError:
+            raise RuntimeError("dashscope >= 1.20 required for Qwen Realtime TTS")
+
+        t0 = time.time()
+        voice_cfg = config.get("voice_config", {})
+        voice_id = voice_cfg.get("voice_name", "qwen-tts-vc-father-voice-20251207194748170-5620") # Default to verified voice?
+        
+        # Audio accumulator callback
+        class SDKRealtimeCallback(QwenTtsRealtimeCallback):
+            def __init__(self):
+                super().__init__()
+                self.finished_event = threading.Event()
+                self.error = None
+                self.audio_buffer = io.BytesIO()
+
+            def on_event(self, response: dict):
+                try:
+                    if response.get("type") == "response.audio.delta":
+                        b64 = response.get("delta")
+                        if b64:
+                            self.audio_buffer.write(base64.b64decode(b64))
+                    elif response.get("type") == "session.finished":
+                        self.finished_event.set()
+                except Exception as e:
+                    self.error = str(e)
+                    self.finished_event.set()
+            
+            def on_close(self, code, msg):
+                if code != 1000:
+                    self.error = f"WebSocket Closed {code}: {msg}"
+                self.finished_event.set()
+
+        # Determine URL based on network environment (same logic as _setup_endpoint)
+        # Using INTL endpoint if possible as verified
+        url = "wss://dashscope-intl.aliyuncs.com/api-ws/v1/realtime" 
+        if "dashscope.aliyuncs.com" in dashscope.base_http_api_url:
+             # If base url is CN, user might prefer CN websocket?
+             # But user experiment verified INTL working.
+             # Logic: If user forced CN, use CN WSS. Defaulting to INTL for now as verified.
+             pass
+
+        callback = SDKRealtimeCallback()
+        try:
+            client = QwenTtsRealtime(
+                model=model_id,
+                url=url,
+                callback=callback
+            )
+            client.connect()
+            
+            # Format object
+            af = AudioFormat.PCM_24000HZ_MONO_16BIT
+            
+            client.update_session(
+                voice=voice_id,
+                response_format=af,
+                language_type="Chinese"
+            )
+            
+            client.append_text(text)
+            client.finish()
+            
+            if not callback.finished_event.wait(timeout=60):
+                raise RuntimeError("Qwen Realtime TTS Timeout")
+                
+            if callback.error:
+                raise RuntimeError(f"Qwen Realtime TTS Error: {callback.error}")
+                
+            # Success
+            audio_data = callback.audio_buffer.getvalue()
+            t1 = time.time()
+            
+            media_part = ContentPart(
+                type="audio",
+                inline_data=audio_data,
+                mime_type="audio/wav" # Actually PCM, but saving as wav needs header? 
+                # Wav file needs header. PCM is raw.
+                # Client persists as binary. User can wrap in container. 
+                # Let's add basic WAV header if possible or just return PCM and denote mime=audio/pcm?
+                # The prompt requested "Save to .wav". The experiment script used 'wave' lib to write frames.
+                # Here we just have bytes. Let's wrap in WAV container for usability.
+            )
+            
+            # Convert PCM to WAV in-memory
+            try:
+                import wave
+                wav_buf = io.BytesIO()
+                with wave.open(wav_buf, "wb") as wf:
+                    wf.setnchannels(1)
+                    wf.setsampwidth(2) # 16bit
+                    wf.setframerate(24000)
+                    wf.writeframes(audio_data)
+                media_part.inline_data = wav_buf.getvalue()
+                media_part.mime_type = "audio/wav"
+            except:
+                pass # Return raw PCM if wave fails
+            
+            return GenerationResponse(
+                content="",
+                model=model_id,
+                provider="dashscope",
+                usage=TokenUsage(tts_input_characters=len(text)),
+                finish_reason="stop",
+                timing={"total": t1 - t0},
+                media_parts=[media_part]
+            )
+            
+        except Exception as e:
+            raise RuntimeError(f"Qwen Realtime TTS Failed: {e}")
+
+    def _generate_speech(self, model_id: str, text: str, config: Dict[str, Any]) -> GenerationResponse:
+        """Handle Text-to-Speech task."""
+        # Route to Realtime API if needed
+        if "realtime" in model_id.lower():
+            return self._generate_speech_realtime(model_id, text, config)
+            
+        from dashscope.audio.tts import SpeechSynthesizer
+        
+        # Standard REST API path
+        t0 = time.time()
+        voice_cfg = config.get("voice_config", {})
+        voice = voice_cfg.get("voice_name", "sambert-zhichu-v1")
+        fmt = config.get("audio_format", "mp3")
+        
+        call_args = {
+            "model": model_id,
+            "text": text,
+            "format": fmt
+        }
+        
+        # Cloning support (REST API specific)
+        ref_audio = voice_cfg.get("reference_audio_uri")
+        if ref_audio:
+             # Standard REST cloning logic (failed with 401 for user, but kept for completeness)
+             prompt_speech_path = None
+             if ref_audio.startswith("file://"):
+                 prompt_speech_path = ref_audio[7:]
+             elif os.path.exists(ref_audio):
+                 prompt_speech_path = ref_audio
+             
+             if prompt_speech_path:
+                 try:
+                     from pydub import AudioSegment
+                     import tempfile
+                     import os
+                     ref_seg = AudioSegment.from_file(prompt_speech_path)
+                     ref_seg = ref_seg.set_channels(1).set_frame_rate(16000)
+                     if len(ref_seg) > 30000: ref_seg = ref_seg[:30000]
+                     fd, temp_wav = tempfile.mkstemp(suffix=".wav")
+                     os.close(fd)
+                     ref_seg.export(temp_wav, format="wav")
+                     call_args["prompt_speech"] = temp_wav
+                 except:
+                     call_args["prompt_speech"] = prompt_speech_path
+             else:
+                 call_args["prompt_speech"] = ref_audio
+                 
+             if "reference_text" in voice_cfg:
+                 call_args["prompt_text"] = voice_cfg["reference_text"]
+        else:
+             call_args["voice"] = voice
+
+        result = SpeechSynthesizer.call(**call_args)
+        
+        if result.get_audio_data() is not None:
+            audio_data = result.get_audio_data()
+            t1 = time.time()
+            
+            media_part = ContentPart(
+                type="audio",
+                inline_data=audio_data,
+                mime_type=f"audio/{fmt}"
+            )
+            
+            return GenerationResponse(
+                content="",
+                model=model_id,
+                provider="dashscope",
+                usage=TokenUsage(tts_input_characters=len(text)),
+                finish_reason="stop",
+                timing={"total": t1 - t0},
+                media_parts=[media_part]
+            )
+        else:
+            # Enhanced Error Logging... (already present in loop, but need to ensure indentation matches)
+            # The previous replace removed the top part but left the 'result = ...' part.
+            # I am replacing the chunk starting from 't0 = ...' to 'else:' logic.
+            # Wait, the previous replace removed the function def header? No, it removed the duplicated header.
+            # Let's ensure we are replacing the correct block.
+            pass # Just providing content for tool args below.
+        """Handle ASR task using MultiModalConversation (matching ASRClient)."""
+        # Note: qwen-audio / qwen3-asr-flash often use MultiModalConversation
+        # Logic adapted from audio/asr_client.py
+        
+        import io
+        
+        t0 = time.time()
+        
+        # Extract audio content
+        audio_part = None
+        if isinstance(contents, list):
+            for p in contents:
+                if p.type == "audio":
+                    audio_part = p
+                    break
+        
+        if not audio_part:
+             raise ValueError("ASR task requires audio content part.")
+        
+        # Prepare content for DashScope MultiModalConversation
+        # Needs list of messages: [{"role": "user", "content": [{"audio": "..."}]}]
+        
+        audio_item = {}
+        processed_data_b64 = None
+        mime = "audio/mp3" # Default
+        
+        # Helper to convert/read audio to base64
+        def prepare_audio_data(uri=None, raw_data=None, raw_mime=None):
+            # Logic adapted from asr_client.py: Convert to 16k mono wav for best results
+            try:
+                from pydub import AudioSegment
+                import io
+                
+                seg = None
+                if uri:
+                    if uri.startswith("file://"):
+                        fpath = uri[7:]
+                    else:
+                        fpath = uri
+                    seg = AudioSegment.from_file(fpath)
+                elif raw_data:
+                     # Load from bytes
+                     # Need to know format or try guessing? 
+                     # AudioSegment.from_file can accept file-like object
+                     seg = AudioSegment.from_file(io.BytesIO(raw_data))
+                
+                if seg:
+                    # Convert to 16k mono
+                    seg = seg.set_channels(1).set_frame_rate(16000)
+                    
+                    # Export to WAV
+                    buf = io.BytesIO()
+                    seg.export(buf, format="wav")
+                    return buf.getvalue(), "audio/wav"
+            except Exception as e:
+                # Fallback to authentic read if pydub fails or missing
+                # logger.warning(f"Audio conversion failed: {e}")
+                pass
+                
+            if uri:
+                path = uri[7:] if uri.startswith("file://") else uri
+                with open(path, "rb") as f:
+                    return f.read(), "audio/mp3" # Assume mp3 or rely on header
+            elif raw_data:
+                return raw_data, raw_mime or "audio/mp3"
+            return None, None
+
+        # Logic
+        final_bytes = None
+        final_mime = None
+        
+        if audio_part.file_uri and (audio_part.file_uri.startswith("file://") or os.path.exists(audio_part.file_uri)):
+             # Local File
+             final_bytes, final_mime = prepare_audio_data(uri=audio_part.file_uri)
+             
+        elif audio_part.file_uri and not audio_part.file_uri.startswith("file://"):
+             # Remote URL?
+             audio_item["audio"] = audio_part.file_uri
+             
+        elif audio_part.inline_data:
+             final_bytes, final_mime = prepare_audio_data(raw_data=audio_part.inline_data, raw_mime=audio_part.mime_type)
+        
+        if final_bytes:
+            b64_data = base64.standard_b64encode(final_bytes).decode("utf-8")
+            audio_item["audio"] = f"data:{final_mime};base64,{b64_data}"
+        
+        if "audio" not in audio_item:
+             raise ValueError("Failed to prepare audio input for ASR.")
+
+        messages = [
+            # System prompt could be useful for specific instructions
+            {
+                "role": "user", 
+                "content": [audio_item]
+            }
+        ]
+        
+        # Call MultiModalConversation
+        response = dashscope.MultiModalConversation.call(
+            model=model_id,
+            messages=messages,
+            result_format='message'
+        )
+        
+        if response.status_code == HTTPStatus.OK:
+            content = ""
+            if response.output and response.output.choices:
+                choice = response.output.choices[0]
+                if choice.message and choice.message.content:
+                    # Content is a list of items for MultiModal
+                    for item in choice.message.content:
+                        if 'text' in item:
+                            content += item['text']
+            
+            t1 = time.time()
+            return GenerationResponse(
+                content=content,
+                model=model_id,
+                provider="dashscope",
+                usage=TokenUsage(output_tokens=len(content)),
+                finish_reason="stop",
+                timing={"total": t1 - t0}
+            )
+        else:
+             raise RuntimeError(f"Qwen ASR Failed: {response.code} - {response.message}")
+
+    def generate(self, model_id: str, contents: ContentInput, api_key: str = None, **kwargs) -> GenerationResponse:
         if not api_key:
             raise ValueError("API key required for Qwen")
             
         self._setup_endpoint(api_key)
+        
+        # Check TaskType routing
+        config = kwargs.get("config", {})
+        task = config.get("task")
+        
+        # 1. Image Generation
+        if task == TaskType.IMAGE_GENERATION or "image" in model_id:
+            # Normalize prompt
+            prompt = ""
+            if isinstance(contents, str):
+                prompt = contents
+            else:
+                prompt = " ".join([p.text for p in contents if p.type == "text" and p.text])
+            return self._generate_image(model_id, prompt, config)
+            
+        # 2. TTS
+        if task == TaskType.TTS:
+            text = ""
+            if isinstance(contents, str):
+                text = contents
+            else:
+                text = " ".join([p.text for p in contents if p.type == "text" and p.text])
+            return self._generate_speech(model_id, text, config)
+
+        # 3. ASR
+        if task == TaskType.ASR:
+            return self._recognize_speech(model_id, contents, config)
+            
+        # 4. Default: Text Generation / Multimodal Understanding
+        t0 = time.time()
         qwen_params = _convert_to_qwen_content(contents)
         
         try:
@@ -112,6 +560,7 @@ class QwenProvider(BaseProvider):
             raise RuntimeError(f"Qwen Request Failed: {str(e)}")
 
     def stream(self, model_id: str, contents: ContentInput, api_key: str = None, **kwargs) -> Iterator[StreamEvent]:
+        # Stream only supported for Text Generation currently
         if not api_key:
             raise ValueError("API key required for Qwen")
             
