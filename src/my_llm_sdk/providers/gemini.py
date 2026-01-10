@@ -2,10 +2,51 @@ from google import genai
 from google.genai import errors
 from google.genai import types
 import time
-import asyncio
-from typing import Iterator, AsyncIterator, Optional, Any, Dict
+import base64
+from typing import Iterator, AsyncIterator, Optional, Any, Dict, List
 from .base import BaseProvider
-from my_llm_sdk.schemas import GenerationResponse, TokenUsage, StreamEvent
+from my_llm_sdk.schemas import (
+    GenerationResponse, TokenUsage, StreamEvent,
+    ContentInput, ContentPart, normalize_content
+)
+
+
+def _convert_to_gemini_parts(contents: ContentInput) -> List[Any]:
+    """
+    Convert SDK ContentInput to Gemini-compatible parts.
+    
+    Gemini SDK accepts:
+    - str: simple text
+    - List of dicts/Part objects for multimodal
+    """
+    if isinstance(contents, str):
+        return contents  # Gemini SDK handles str directly
+    
+    gemini_parts = []
+    for part in contents:
+        if part.type == "text":
+            gemini_parts.append(part.text or "")
+        elif part.type in ("image", "audio", "video", "file"):
+            if part.inline_data:
+                # Use base64 inline data
+                b64_data = base64.standard_b64encode(part.inline_data).decode("utf-8")
+                gemini_parts.append({
+                    "inline_data": {
+                        "mime_type": part.mime_type or "application/octet-stream",
+                        "data": b64_data
+                    }
+                })
+            elif part.file_uri:
+                # Use file URI (gs://, https://)
+                gemini_parts.append({
+                    "file_data": {
+                        "mime_type": part.mime_type or "application/octet-stream",
+                        "file_uri": part.file_uri
+                    }
+                })
+    
+    return gemini_parts if gemini_parts else ""
+
 
 class GeminiProvider(BaseProvider):
     def _extract_usage(self, response_or_chunk) -> TokenUsage:
@@ -18,7 +59,6 @@ class GeminiProvider(BaseProvider):
         if usage:
             p_tokens = usage.prompt_token_count or 0
             o_tokens = usage.candidates_token_count or 0
-            # Expert advice: use total_token_count if available to cover thoughts/cache/etc.
             t_tokens = getattr(usage, "total_token_count", None)
             if t_tokens is None:
                 t_tokens = p_tokens + o_tokens
@@ -31,12 +71,9 @@ class GeminiProvider(BaseProvider):
     
     def _build_config(self, kwargs: Dict[str, Any]) -> Optional[types.GenerateContentConfig]:
         """Constructs GenerateContentConfig from kwargs."""
-        # Allow passing a full config object if desired
         if 'config' in kwargs:
             return kwargs['config']
 
-        # Otherwise map common kwargs to GenAI config
-        # Supported: max_output_tokens, temperature, top_p, top_k, stop_sequences ...
         config_params = {}
         
         if 'max_output_tokens' in kwargs:
@@ -50,32 +87,32 @@ class GeminiProvider(BaseProvider):
         if 'stop_sequences' in kwargs:
             config_params['stop_sequences'] = kwargs['stop_sequences']
         if 'response_mime_type' in kwargs:
-             config_params['response_mime_type'] = kwargs['response_mime_type']
+            config_params['response_mime_type'] = kwargs['response_mime_type']
 
         if not config_params:
             return None
             
         return types.GenerateContentConfig(**config_params)
 
-    def generate(self, model_id: str, prompt: str, api_key: str = None, **kwargs) -> GenerationResponse:
+    def generate(self, model_id: str, contents: ContentInput, api_key: str = None, **kwargs) -> GenerationResponse:
         t0 = time.time()
         if not api_key:
             raise ValueError("API key required for Gemini")
             
         config = self._build_config(kwargs)
+        gemini_contents = _convert_to_gemini_parts(contents)
 
         with genai.Client(api_key=api_key) as client:
             try:
                 response = client.models.generate_content(
                     model=model_id,
-                    contents=prompt,
+                    contents=gemini_contents,
                     config=config
                 )
                 
                 content = response.text
                 usage = self._extract_usage(response)
                 
-                # Extract Finish Reason
                 finish_reason = "unknown"
                 if response.candidates:
                     raw_reason = str(response.candidates[0].finish_reason)
@@ -95,22 +132,23 @@ class GeminiProvider(BaseProvider):
             except Exception as e:
                 raise RuntimeError(f"Gemini API Error: {str(e)}")
 
-    def stream(self, model_id: str, prompt: str, api_key: str = None, **kwargs) -> Iterator[StreamEvent]:
+    def stream(self, model_id: str, contents: ContentInput, api_key: str = None, **kwargs) -> Iterator[StreamEvent]:
         if not api_key:
             raise ValueError("API key required for Gemini")
         
         config = self._build_config(kwargs)
+        gemini_contents = _convert_to_gemini_parts(contents)
             
         with genai.Client(api_key=api_key) as client:
             try:
                 response_stream = client.models.generate_content_stream(
                     model=model_id,
-                    contents=prompt,
+                    contents=gemini_contents,
                     config=config
                 )
                 
                 last_usage = None
-                last_finish_reason = "unknown" # Expert advice: default to unknown
+                last_finish_reason = "unknown"
                 
                 for chunk in response_stream:
                     if chunk.text:
@@ -135,19 +173,19 @@ class GeminiProvider(BaseProvider):
             except Exception as e:
                 yield StreamEvent(delta="", error=e)
 
-    async def generate_async(self, model_id: str, prompt: str, api_key: str = None, **kwargs) -> GenerationResponse:
+    async def generate_async(self, model_id: str, contents: ContentInput, api_key: str = None, **kwargs) -> GenerationResponse:
         t0 = time.time()
         if not api_key:
             raise ValueError("API key required for Gemini")
         
         config = self._build_config(kwargs)
+        gemini_contents = _convert_to_gemini_parts(contents)
             
-        # Expert advice: use async context manager for aio client
         async with genai.Client(api_key=api_key).aio as aclient:
             try:
                 response = await aclient.models.generate_content(
                     model=model_id,
-                    contents=prompt,
+                    contents=gemini_contents,
                     config=config
                 )
                 
@@ -173,18 +211,18 @@ class GeminiProvider(BaseProvider):
             except Exception as e:
                 raise RuntimeError(f"Gemini Async API Error: {str(e)}")
 
-    async def stream_async(self, model_id: str, prompt: str, api_key: str = None, **kwargs) -> AsyncIterator[StreamEvent]:
+    async def stream_async(self, model_id: str, contents: ContentInput, api_key: str = None, **kwargs) -> AsyncIterator[StreamEvent]:
         if not api_key:
             raise ValueError("API key required for Gemini")
         
         config = self._build_config(kwargs)
+        gemini_contents = _convert_to_gemini_parts(contents)
             
         async with genai.Client(api_key=api_key).aio as aclient:
             try:
-                # Expert advice: await the stream coroutine to get async iterator
                 response_stream = await aclient.models.generate_content_stream(
                     model=model_id,
-                    contents=prompt,
+                    contents=gemini_contents,
                     config=config
                 )
                 
@@ -213,3 +251,4 @@ class GeminiProvider(BaseProvider):
                 yield StreamEvent(delta="", error=f"Gemini Async Stream Error [{e.code}]: {e.message}")
             except Exception as e:
                 yield StreamEvent(delta="", error=e)
+

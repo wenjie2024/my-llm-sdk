@@ -3,22 +3,22 @@ import asyncio
 import time
 from my_llm_sdk.client import LLMClient
 from my_llm_sdk.providers.base import BaseProvider
-from my_llm_sdk.schemas import GenerationResponse, TokenUsage
+from my_llm_sdk.schemas import GenerationResponse, TokenUsage, ContentInput
 
 class MockAsyncProvider(BaseProvider):
-    async def generate_async(self, model: str, prompt: str, api_key: str = None, **kwargs):
+    async def generate_async(self, model: str, contents: ContentInput, api_key: str = None, **kwargs):
         # Simulate Network Delay
         await asyncio.sleep(0.1)
         return GenerationResponse(content="mock", model=model, provider="mock", usage=TokenUsage(0,0,0), finish_reason="stop")
 
-    def generate(self, model, prompt, api_key=None, **kwargs):
+    def generate(self, model, contents: ContentInput, api_key=None, **kwargs):
         # Sync version sleeps blocks loop if not in thread
         time.sleep(0.1)
         return GenerationResponse(content="mock", model=model, provider="mock", usage=TokenUsage(0,0,0), finish_reason="stop")
     
     # Required abstract methods
-    def stream(self, *args, **kwargs): pass
-    async def stream_async(self, *args, **kwargs): pass
+    def stream(self, model, contents: ContentInput, api_key=None, **kwargs): pass
+    async def stream_async(self, model, contents: ContentInput, api_key=None, **kwargs): pass
 
 @pytest.fixture
 def async_client(isolated_env):

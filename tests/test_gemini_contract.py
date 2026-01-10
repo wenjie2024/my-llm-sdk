@@ -26,7 +26,7 @@ def test_gemini_generate_contract(provider):
         
         response = provider.generate(
             model_id="gemini-2.5-flash", 
-            prompt="Hello, return simply 'OK'",
+            contents="Hello, return simply 'OK'",
             api_key=API_KEY
         )
         
@@ -54,7 +54,7 @@ def test_gemini_stream_contract(provider):
         
         events = list(provider.stream(
             model_id="gemini-2.5-flash",
-            prompt="Count from 1 to 3",
+            contents="Count from 1 to 3",
             api_key=API_KEY
         ))
         
@@ -83,7 +83,7 @@ async def test_gemini_generate_async_contract(provider):
         
         response = await provider.generate_async(
             model_id="gemini-2.5-flash",
-            prompt="Async test, reply 'OK'",
+            contents="Async test, reply 'OK'",
             api_key=API_KEY
         )
         
@@ -101,7 +101,7 @@ async def test_gemini_stream_async_contract(provider):
         events = []
         async for event in provider.stream_async(
             model_id="gemini-2.5-flash",
-            prompt="Count from 1 to 3 async",
+            contents="Count from 1 to 3 async",
             api_key=API_KEY
         ):
             events.append(event)
@@ -117,7 +117,7 @@ def test_gemini_error_mapping(provider):
     with pytest.raises(RuntimeError) as excinfo:
         provider.generate(
             model_id="gemini-2.5-flash",
-            prompt="Fail expected",
+            contents="Fail expected",
             api_key="BAD_KEY_12345"
         )
     assert "Gemini API Error" in str(excinfo.value)

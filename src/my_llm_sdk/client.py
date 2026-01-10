@@ -1,15 +1,52 @@
 import asyncio
 import os
-from typing import Optional, Dict
+from typing import Optional, Dict, Union, Iterator, AsyncIterator, List
 from my_llm_sdk.config.loader import load_config
 from my_llm_sdk.budget.controller import BudgetController
-from my_llm_sdk.budget.pricing import calculate_estimated_cost, calculate_actual_cost
+from my_llm_sdk.budget.pricing import calculate_estimated_cost, calculate_actual_cost, estimate_content_tokens
 from my_llm_sdk.doctor.checker import Doctor
 from my_llm_sdk.doctor.report import print_report
 from my_llm_sdk.providers.base import BaseProvider, EchoProvider
 from my_llm_sdk.providers.gemini import GeminiProvider
 from my_llm_sdk.providers.qwen import QwenProvider
 from my_llm_sdk.config.exceptions import ConfigurationError
+from my_llm_sdk.schemas import (
+    GenerationResponse, StreamEvent, ContentInput, ContentPart, normalize_content
+)
+
+
+def _resolve_contents(prompt: str = None, contents: ContentInput = None) -> ContentInput:
+    """
+    Resolve input parameters to ContentInput.
+    Supports backward compatibility: if `prompt` is provided, use it.
+    Otherwise use `contents`.
+    """
+    if prompt is not None:
+        return prompt
+    if contents is not None:
+        return contents
+    raise ValueError("Either 'prompt' or 'contents' must be provided.")
+
+
+def _get_text_for_estimation(contents: ContentInput) -> str:
+    """
+    Extract text representation for cost estimation.
+    For multimodal, combines text parts. Non-text parts contribute placeholder length.
+    """
+    if isinstance(contents, str):
+        return contents
+    
+    parts = []
+    for p in contents:
+        if p.type == "text" and p.text:
+            parts.append(p.text)
+        elif p.type == "image":
+            parts.append("[IMAGE:1000tokens]")  # Placeholder for image token estimation
+        elif p.type == "audio":
+            parts.append("[AUDIO:500tokens]")
+        elif p.type == "video":
+            parts.append("[VIDEO:2000tokens]")
+    return " ".join(parts)
 
 class LLMClient:
     def __init__(self, project_config_path: str = None, user_config_path: str = None):
@@ -48,10 +85,14 @@ class LLMClient:
         from my_llm_sdk.utils.resilience import RetryManager
         self.retry_manager = RetryManager(self.config.resilience)
 
-    from typing import Union
-    from my_llm_sdk.schemas import GenerationResponse
-
-    def generate(self, prompt: str, model_alias: str = "default", full_response: bool = False) -> Union[str, "GenerationResponse"]:
+    def generate(
+        self, 
+        prompt: str = None, 
+        model_alias: str = "default", 
+        full_response: bool = False,
+        *,
+        contents: ContentInput = None
+    ) -> Union[str, GenerationResponse]:
         """
         Main entry point for generation.
         1. Resolve model alias
@@ -59,6 +100,9 @@ class LLMClient:
         3. Call provider (with Retry)
         4. Track cost
         """
+        # 0. Resolve input (backward compatible)
+        resolved_contents = _resolve_contents(prompt, contents)
+        text_for_estimation = _get_text_for_estimation(resolved_contents)
         
         # 1. Resolve Model
         model_def = self.config.final_model_registry.get(model_alias)
@@ -79,11 +123,8 @@ class LLMClient:
             )
             
         # 2. Pre-check Budget & Rate Limits
-        # Estimate cost & tokens
-        estimated_cost = calculate_estimated_cost(model_def.model_id, prompt, max_output_tokens=1000, config=self.config)
-        
-        # Simple token estimation for TPM check (chars / 4)
-        estimated_tokens = len(prompt) // 4
+        estimated_cost = calculate_estimated_cost(model_def.model_id, text_for_estimation, max_output_tokens=1000, config=self.config)
+        estimated_tokens = len(text_for_estimation) // 4
         
         # Check Budget
         self.budget.check_budget(estimated_cost)
@@ -109,7 +150,7 @@ class LLMClient:
             
             # Define the operation to retry
             def _op():
-                return provider_instance.generate(model_def.model_id, prompt, api_key)
+                return provider_instance.generate(model_def.model_id, resolved_contents, api_key)
             
             # Decorate it manually
             retriable_op = self.retry_manager.retry_policy(_op)
@@ -141,9 +182,8 @@ class LLMClient:
                 final_cost = calculate_actual_cost(model_def.model_id, response_obj.usage, self.config)
 
             # Recalculate cost based on actual response content length
-            # If we trust estimated_cost for input, we just add output cost
             if not response_obj.usage:
-                final_cost = calculate_estimated_cost(model_def.model_id, prompt + response_obj.content, max_output_tokens=0, config=self.config)
+                final_cost = calculate_estimated_cost(model_def.model_id, text_for_estimation + response_obj.content, max_output_tokens=0, config=self.config)
             
             # Attach timing/meta to ledger? V0.2 extensions support usage_json.
             # We can pass extended metadata if we modify track()
@@ -175,16 +215,24 @@ class LLMClient:
         else:
             return response_obj.content
 
-    from typing import Iterator
-    from my_llm_sdk.schemas import StreamEvent
 
-    def stream(self, prompt: str, model_alias: str = "default") -> Iterator["StreamEvent"]:
+    def stream(
+        self, 
+        prompt: str = None, 
+        model_alias: str = "default",
+        *,
+        contents: ContentInput = None
+    ) -> Iterator[StreamEvent]:
         """
         Stream generation.
         1. Pre-check budget/limits.
         2. Yield events.
         3. On finish, record to Ledger.
         """
+        # 0. Resolve input
+        resolved_contents = _resolve_contents(prompt, contents)
+        text_for_estimation = _get_text_for_estimation(resolved_contents)
+        
         # 1. Resolve Model
         model_def = self.config.final_model_registry.get(model_alias)
         if not model_def:
@@ -196,7 +244,7 @@ class LLMClient:
             provider_instance = EchoProvider()
             
         # 2. Pre-check (Estimate)
-        estimated_cost = calculate_estimated_cost(model_def.model_id, prompt, max_output_tokens=1000, config=self.config)
+        estimated_cost = calculate_estimated_cost(model_def.model_id, text_for_estimation, max_output_tokens=1000, config=self.config)
         self.budget.check_budget(estimated_cost)
         
         # Check Rate Limits
@@ -205,12 +253,12 @@ class LLMClient:
             rpm=model_def.rpm,
             rpd=model_def.rpd,
             tpm=model_def.tpm,
-            estimated_tokens=len(prompt) // 4
+            estimated_tokens=len(text_for_estimation) // 4
         )
         
         # 3. Stream
         status = 'success'
-        stream_gen = provider_instance.stream(model_def.model_id, prompt, self.config.api_keys.get(provider_name))
+        stream_gen = provider_instance.stream(model_def.model_id, resolved_contents, self.config.api_keys.get(provider_name))
         
         accumulated_content = ""
         final_usage = None
@@ -247,7 +295,7 @@ class LLMClient:
                 # Recalculate cost? For now approximate with estimate logic using full content
                 final_cost = calculate_actual_cost(model_def.model_id, final_usage, self.config)
             else:
-                 final_cost = calculate_estimated_cost(model_def.model_id, prompt + accumulated_content, max_output_tokens=0, config=self.config)
+                final_cost = calculate_estimated_cost(model_def.model_id, text_for_estimation + accumulated_content, max_output_tokens=0, config=self.config)
             
             self.budget.track(
                 provider=provider_name,
@@ -257,8 +305,18 @@ class LLMClient:
                 input_tokens=input_tokens,
                 output_tokens=output_tokens
             )
-    async def generate_async(self, prompt: str, model_alias: str = "default", full_response: bool = False) -> Union[str, "GenerationResponse"]:
+    async def generate_async(
+        self, 
+        prompt: str = None, 
+        model_alias: str = "default", 
+        full_response: bool = False,
+        *,
+        contents: ContentInput = None
+    ) -> Union[str, GenerationResponse]:
         """Async version of generate."""
+        # 0. Resolve input
+        resolved_contents = _resolve_contents(prompt, contents)
+        text_for_estimation = _get_text_for_estimation(resolved_contents)
         
         # 1. Resolve Model
         model_def = self.config.final_model_registry.get(model_alias)
@@ -271,20 +329,10 @@ class LLMClient:
             provider_instance = EchoProvider()
             
         # 2. Pre-check Budget & Rate Limits (Async Check)
-        estimated_cost = calculate_estimated_cost(model_def.model_id, prompt, max_output_tokens=1000, config=self.config)
-        
-        # Async check using Ledger cache/query
+        estimated_cost = calculate_estimated_cost(model_def.model_id, text_for_estimation, max_output_tokens=1000, config=self.config)
         await self.budget.acheck_budget(estimated_cost)
         
-        # Rate Limit check (Local checks usually fast, but we might want async lock if SQLite contention high?
-        # Current RateLimiter is sync. V0.3 Scope: keep RL sync or make async?
-        # RL uses sqlite. In high concurrency, sync sqlite might block loop.
-        # Ideally should use run_in_executor or make RL async.
-        # For V0.3 Phase 4 Step 1: Wrap sync RL check in to_thread?
-        # Or just accept blocking for ms? Let's wrap.
-        estimated_tokens = len(prompt) // 4
-        
-        # Reuse sync check logic but in thread to avoid blocking loop on SQL
+        estimated_tokens = len(text_for_estimation) // 4
         await asyncio.to_thread(
             self.rate_limiter.check_limits, 
             model_id=model_def.model_id,
@@ -304,7 +352,7 @@ class LLMClient:
              # RetryManager supports async decorators.
              
              async def _op():
-                 return await provider_instance.generate_async(model_def.model_id, prompt, api_key)
+                 return await provider_instance.generate_async(model_def.model_id, resolved_contents, api_key)
              
              retriable_op = self.retry_manager.retry_policy(_op)
              response_obj = await retriable_op()
@@ -319,7 +367,7 @@ class LLMClient:
                  output_tokens = response_obj.usage.output_tokens
                  final_cost = calculate_actual_cost(model_def.model_id, response_obj.usage, self.config)
              else:
-                 final_cost = calculate_estimated_cost(model_def.model_id, prompt + response_obj.content, max_output_tokens=0, config=self.config)
+                 final_cost = calculate_estimated_cost(model_def.model_id, text_for_estimation + response_obj.content, max_output_tokens=0, config=self.config)
              
              await self.budget.atrack(
                  provider=provider_name,
@@ -346,25 +394,33 @@ class LLMClient:
         else:
             return response_obj.content
 
-    from typing import AsyncIterator
-    
-    async def stream_async(self, prompt: str, model_alias: str = "default") -> AsyncIterator["StreamEvent"]:
+    async def stream_async(
+        self, 
+        prompt: str = None, 
+        model_alias: str = "default",
+        *,
+        contents: ContentInput = None
+    ) -> AsyncIterator[StreamEvent]:
         """Async stream generation."""
+        # 0. Resolve input
+        resolved_contents = _resolve_contents(prompt, contents)
+        text_for_estimation = _get_text_for_estimation(resolved_contents)
+        
         # 1. Resolve Model
         model_def = self.config.final_model_registry.get(model_alias)
         if not model_def:
             raise ValueError(f"Model alias '{model_alias}' not found in registry.")
-            
+        
         provider_name = model_def.provider
         provider_instance = self.providers.get(provider_name)
         if not provider_instance:
             provider_instance = EchoProvider()
             
         # 2. Pre-check
-        estimated_cost = calculate_estimated_cost(model_def.model_id, prompt, max_output_tokens=1000, config=self.config)
+        estimated_cost = calculate_estimated_cost(model_def.model_id, text_for_estimation, max_output_tokens=1000, config=self.config)
         await self.budget.acheck_budget(estimated_cost)
         
-        estimated_tokens = len(prompt) // 4
+        estimated_tokens = len(text_for_estimation) // 4
         await asyncio.to_thread(
             self.rate_limiter.check_limits,
             model_id=model_def.model_id,
@@ -376,7 +432,7 @@ class LLMClient:
         
         # 3. Stream
         status = 'success'
-        stream_gen = provider_instance.stream_async(model_def.model_id, prompt, self.config.api_keys.get(provider_name))
+        stream_gen = provider_instance.stream_async(model_def.model_id, resolved_contents, self.config.api_keys.get(provider_name))
         
         accumulated_content = ""
         final_usage = None
@@ -406,7 +462,7 @@ class LLMClient:
                 output_tokens = final_usage.output_tokens
                 final_cost = calculate_actual_cost(model_def.model_id, final_usage, self.config)
             else:
-                 final_cost = calculate_estimated_cost(model_def.model_id, prompt + accumulated_content, max_output_tokens=0, config=self.config)
+                final_cost = calculate_estimated_cost(model_def.model_id, text_for_estimation + accumulated_content, max_output_tokens=0, config=self.config)
             
             await self.budget.atrack(
                 provider=provider_name,

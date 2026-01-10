@@ -39,7 +39,7 @@ def test_generate_passes_config(MockClient, provider):
     
     provider.generate(
         model_id="gemini-test", 
-        prompt="Hi", 
+        contents="Hi", 
         api_key="key", 
         max_output_tokens=100
     )
@@ -71,7 +71,7 @@ async def test_generate_async_passes_config(MockClient, provider):
     
     await provider.generate_async(
         model_id="gemini-test",
-        prompt="Hi",
+        contents="Hi",
         api_key="key",
         temperature=0.5
     )

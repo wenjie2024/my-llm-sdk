@@ -1,6 +1,6 @@
-from typing import Dict, Tuple, Optional
+from typing import Dict, Tuple, Optional, Union, List
 from my_llm_sdk.config.models import MergedConfig, ModelDefinition
-from my_llm_sdk.schemas import TokenUsage
+from my_llm_sdk.schemas import TokenUsage, ContentInput, ContentPart
 
 # Pricing Table: Cost per 1M tokens (Input, Output) in USD
 # Sources: Official pricing pages (Verified Dec 2025)
@@ -41,6 +41,35 @@ def estimate_tokens(text: str) -> int:
     if not text:
         return 0
     return len(text) // 3 + 1
+
+
+def estimate_content_tokens(contents: ContentInput) -> int:
+    """
+    Estimate tokens for ContentInput (text or multimodal).
+    
+    For multimodal content, uses conservative estimates:
+    - Text: standard character-based estimation
+    - Image: ~1000 tokens (conservative estimate for vision models)
+    - Audio: ~500 tokens per part
+    - Video: ~2000 tokens per part
+    """
+    if isinstance(contents, str):
+        return estimate_tokens(contents)
+    
+    total_tokens = 0
+    for part in contents:
+        if part.type == "text" and part.text:
+            total_tokens += estimate_tokens(part.text)
+        elif part.type == "image":
+            total_tokens += 1000  # Conservative image token estimate
+        elif part.type == "audio":
+            total_tokens += 500
+        elif part.type == "video":
+            total_tokens += 2000
+        elif part.type == "file":
+            total_tokens += 500  # Generic file estimate
+    
+    return total_tokens
 
 def _get_pricing_for_model(model_id: str, config: Optional[MergedConfig] = None) -> Tuple[float, float]:
     """
