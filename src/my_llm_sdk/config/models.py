@@ -1,4 +1,4 @@
-from typing import Dict, List, Optional, Literal
+from typing import Dict, List, Optional, Literal, Any
 from pydantic import BaseModel, Field, validator
 
 class RoutingPolicy(BaseModel):
@@ -60,6 +60,9 @@ class ProjectConfig(BaseModel):
     
     # Resilience
     resilience: ResilienceConfig = Field(default_factory=ResilienceConfig)
+    
+    # Project Settings (V0.4.0)
+    settings: Dict[str, Any] = Field(default_factory=dict)
 
 class UserConfig(BaseModel):
     """Configuration loaded from user home (Local only)."""
@@ -85,3 +88,6 @@ class MergedConfig(BaseModel):
     
     # Resilience
     resilience: ResilienceConfig
+    
+    # Merged Settings
+    settings: Dict[str, Any]

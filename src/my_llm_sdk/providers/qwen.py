@@ -61,6 +61,8 @@ class QwenProvider(BaseProvider):
     def _setup_endpoint(self, api_key: str):
         """Configure API key and endpoint based on network."""
         dashscope.api_key = api_key
+        import os
+        os.environ["DASHSCOPE_API_KEY"] = api_key
         if can_connect_to_google(timeout=1.5):
             dashscope.base_http_api_url = "https://dashscope-intl.aliyuncs.com/api/v1"
         else:
@@ -199,14 +201,14 @@ class QwenProvider(BaseProvider):
                     self.error = f"WebSocket Closed {code}: {msg}"
                 self.finished_event.set()
 
-        # Determine URL based on network environment (same logic as _setup_endpoint)
-        # Using INTL endpoint if possible as verified
-        url = "wss://dashscope-intl.aliyuncs.com/api-ws/v1/realtime" 
-        if "dashscope.aliyuncs.com" in dashscope.base_http_api_url:
-             # If base url is CN, user might prefer CN websocket?
-             # But user experiment verified INTL working.
-             # Logic: If user forced CN, use CN WSS. Defaulting to INTL for now as verified.
-             pass
+        # Determine URL based on network environment
+        # Match WebSocket endpoint with HTTP API endpoint (which is set by _setup_endpoint based on Google connectivity)
+        if "dashscope-intl" in dashscope.base_http_api_url:
+            # Using INTL endpoint
+            url = "wss://dashscope-intl.aliyuncs.com/api-ws/v1/realtime"
+        else:
+            # Using CN endpoint (default for most users in China)
+            url = "wss://dashscope.aliyuncs.com/api-ws/v1/realtime"
 
         callback = SDKRealtimeCallback()
         try:

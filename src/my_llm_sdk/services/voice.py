@@ -88,6 +88,8 @@ class VoiceService:
         ext = os.path.splitext(audio_path)[1].lower()
         if ext in (".wav", ".wave"):
             mime_type = "audio/wav"
+        elif ext in (".m4a",):
+            mime_type = "audio/mp4"
         else:
             mime_type = "audio/mpeg"
         

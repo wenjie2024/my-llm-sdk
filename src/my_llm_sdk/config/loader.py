@@ -64,7 +64,8 @@ def merge_configs(project: ProjectConfig, user: UserConfig) -> MergedConfig:
         budget_strict_mode=project.budget_strict_mode,
         daily_spend_limit=user.daily_spend_limit,
         api_keys=user.api_keys,
-        resilience=project.resilience
+        resilience=project.resilience,
+        settings=project.settings
     )
 
 def load_config(project_path: str = "llm.project.yaml", user_path: str = "~/.config/llm-sdk/config.yaml") -> MergedConfig:

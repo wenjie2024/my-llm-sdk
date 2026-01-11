@@ -165,7 +165,8 @@ class LLMClient:
                 # P1: Resolve optimize_images (B+A pattern)
                 effective_config = dict(config) if config else {}
                 if effective_config.get("optimize_images") is None:
-                    project_settings = self.config._project_config.get("settings", {})
+                    # Fix: User exposed settings dict in MergedConfig
+                    project_settings = getattr(self.config, "settings", {})
                     effective_config["optimize_images"] = project_settings.get("optimize_images", True)
                 
                 return provider_instance.generate(
@@ -394,11 +395,17 @@ class LLMClient:
              api_key = self.config.api_keys.get(provider_name)
              
              async def _op():
+                 # P1: Resolve optimize_images (B+A pattern) - same as sync
+                 effective_config = dict(config) if config else {}
+                 if effective_config.get("optimize_images") is None:
+                     project_settings = getattr(self.config, "settings", {})
+                     effective_config["optimize_images"] = project_settings.get("optimize_images", True)
+
                  return await provider_instance.generate_async(
                      model_id=model_def.model_id, 
                      contents=resolved_contents, 
                      api_key=api_key,
-                     config=config
+                     config=effective_config
                  )
              
              retriable_op = self.retry_manager.retry_policy(_op)

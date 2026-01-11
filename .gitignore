@@ -3,6 +3,7 @@ config.yaml
 .env
 
 # Runtime Data
+report/
 ledger.db
 ledger.db-shm
 ledger.db-wal
