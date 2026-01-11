@@ -31,3 +31,9 @@ verify_*.py
 benchmark.py
 GEMINI.md
 ROADMAP.md
+
+# Generated Outputs
+outputs/
+
+# Temporary Tests
+tests/integration/test_config_settings.py
