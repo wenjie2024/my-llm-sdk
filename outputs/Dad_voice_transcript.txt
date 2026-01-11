@@ -1,4 +1,0 @@
-Original Audio: audio/Dad_voice.m4a
-Model: qwen3-asr-flash (via SDK)
-Transcription:
-今天我要请你来讲一个很温暖的故事，他说的是一位老爷爷和几个孩子的故事，写这个故事的人叫卡纳利萨萨维奇卡尔森，他从一九五二年出版了第一本书《会说话的猫》以后，就一直受着读者和评论界的关注。
