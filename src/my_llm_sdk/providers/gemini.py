@@ -22,35 +22,57 @@ def _convert_to_gemini_parts(contents: ContentInput) -> List[Any]:
     """
     Convert SDK ContentInput to Gemini-compatible parts.
     
-    Gemini SDK accepts:
-    - str: simple text
-    - List of dicts/Part objects for multimodal
+    Supports flexible input types:
+    - str: simple text (as single item or in list)
+    - PIL.Image: converted via types.Part.from_image()
+    - ContentPart: mapped to Gemini Part format
+    - List of mixed types above
     """
+    # Handle single string
     if isinstance(contents, str):
         return contents  # Gemini SDK handles str directly
     
+    # Handle PIL.Image directly (single image)
+    if HAS_PILLOW and isinstance(contents, Image.Image):
+        buf = io.BytesIO()
+        contents.save(buf, format='PNG')
+        b64_data = base64.standard_b64encode(buf.getvalue()).decode("utf-8")
+        return [{"inline_data": {"mime_type": "image/png", "data": b64_data}}]
+    
+    # Handle list of mixed content
     gemini_parts = []
     for part in contents:
-        if part.type == "text":
-            gemini_parts.append(part.text or "")
-        elif part.type in ("image", "audio", "video", "file"):
-            if part.inline_data:
-                # Use base64 inline data
-                b64_data = base64.standard_b64encode(part.inline_data).decode("utf-8")
-                gemini_parts.append({
-                    "inline_data": {
-                        "mime_type": part.mime_type or "application/octet-stream",
-                        "data": b64_data
-                    }
-                })
-            elif part.file_uri:
-                # Use file URI (gs://, https://)
-                gemini_parts.append({
-                    "file_data": {
-                        "mime_type": part.mime_type or "application/octet-stream",
-                        "file_uri": part.file_uri
-                    }
-                })
+        # String in list -> text
+        if isinstance(part, str):
+            gemini_parts.append(part)
+        # PIL.Image -> convert to bytes
+        elif HAS_PILLOW and isinstance(part, Image.Image):
+            buf = io.BytesIO()
+            part.save(buf, format='PNG')
+            b64_data = base64.standard_b64encode(buf.getvalue()).decode("utf-8")
+            gemini_parts.append({"inline_data": {"mime_type": "image/png", "data": b64_data}})
+        # ContentPart -> convert based on type
+        elif hasattr(part, 'type'):
+            if part.type == "text":
+                gemini_parts.append(part.text or "")
+            elif part.type in ("image", "audio", "video", "file"):
+                if part.inline_data:
+                    # Use base64 inline data
+                    b64_data = base64.standard_b64encode(part.inline_data).decode("utf-8")
+                    gemini_parts.append({
+                        "inline_data": {
+                            "mime_type": part.mime_type or "application/octet-stream",
+                            "data": b64_data
+                        }
+                    })
+                elif part.file_uri:
+                    # Use file URI (gs://, https://)
+                    gemini_parts.append({
+                        "file_data": {
+                            "mime_type": part.mime_type or "application/octet-stream",
+                            "file_uri": part.file_uri
+                        }
+                    })
     
     return gemini_parts if gemini_parts else ""
 
@@ -174,6 +196,20 @@ class GeminiProvider(BaseProvider):
                         "prebuilt_voice_config": {"voice_name": voice_name}
                     }
                 }
+
+        # Image Generation Config (image_size, aspect_ratio)
+        img_size = get_arg('image_size')
+        aspect_ratio = get_arg('aspect_ratio')
+        if img_size or aspect_ratio:
+            img_cfg_params = {}
+            if img_size:
+                img_cfg_params['image_size'] = img_size
+            if aspect_ratio:
+                img_cfg_params['aspect_ratio'] = aspect_ratio
+            try:
+                config_params['image_config'] = types.ImageConfig(**img_cfg_params)
+            except Exception:
+                pass  # Let API handle invalid values
 
         # Infer Modalities from Task Type if not explicit
         task_type = get_arg('task')
@@ -361,6 +397,14 @@ class GeminiProvider(BaseProvider):
                 if response.candidates:
                     raw_reason = str(response.candidates[0].finish_reason)
                     finish_reason = raw_reason.lower().replace("finishreason.", "")
+                
+                # Safety block detection: IMAGE requested but no media returned
+                requested_modalities = config_params.get('response_modalities', []) if 'config_params' in dir() else []
+                raw_cfg = kwargs.get('config', {})
+                if isinstance(raw_cfg, dict):
+                    requested_modalities = raw_cfg.get('response_modalities', [])
+                if "IMAGE" in requested_modalities and len(media_parts) == 0:
+                    finish_reason = "safety_blocked"
                     
                 t1 = time.time()
                 return GenerationResponse(

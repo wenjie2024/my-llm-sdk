@@ -17,7 +17,8 @@ def get_mock_config(limit: float):
         daily_spend_limit=limit,
         api_keys={},
         resilience=ResilienceConfig(),
-        budget_strict_mode=True
+        budget_strict_mode=True,
+        settings={}
     )
 
 @pytest.fixture

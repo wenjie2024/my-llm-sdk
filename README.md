@@ -134,13 +134,57 @@ for event in client.stream("数到5", model_alias="qwen-max"):
 # --- V0.4.0 多模态示例 ---
 
 # 图片生成
+# 图片生成 (V0.4.1 增强)
+from PIL import Image
+
+# 场景 1: 纯文生图 (Text-to-Image)
 res = client.generate(
-    "A cozy coffee shop with warm lighting",
-    model_alias="imagen-4.0-generate",
-    config=GenConfig(task=TaskType.IMAGE_GENERATION, persist_media=True),
+    "A cyberpunk city street at night, neon lights, rain, highly detailed",
+    model_alias="gemini-3-pro-image-preview",
+    config={
+        "image_size": "2K",       # 可选: 1K (默认), 2K, 4K (仅 Pro)
+        "aspect_ratio": "16:9"    # 可选: 1:1, 16:9, 4:5, 3:4, 21:9 等
+    },
     full_response=True
 )
-print(f"Generated image saved to: {res.media_parts[0].local_path}")
+
+# 💡 参数参考 (Gemini 3 Pro)
+# | 比例  | 1K 分辨率   | 2K 分辨率   | 4K 分辨率   |
+# | :--- | :--- | :--- | :--- |
+# | 1:1  | 1024x1024 | 2048x2048 | 4096x4096 |
+# | 16:9 | 1376x768  | 2752x1536 | 5504x3072 |
+# | 4:5  | 928x1152  | 1856x2304 | 3712x4608 |
+# 更多详情: https://ai.google.dev/gemini-api/docs/image-generation?hl=zh-cn
+
+# 场景 2: 图生图 / 混合输入 (Image-to-Image / Mixed Input)
+# list 中可混合: 字符串 prompt, PIL.Image 对象, 或 ContentPart
+res = client.generate(
+    model_alias="gemini-3-pro-image-preview",
+    contents=[
+         "Convert this sketch into a photorealistic portrait.", 
+         Image.open("sketch.png") 
+    ],
+    full_response=True
+)
+
+# --- 关键: 通过 TEXT 内容排查问题 ---
+# 图片生成时，Google 依然会返回 TEXT。
+# 1. 成功时: TEXT 通常是 "Here is the image..." (无用信息)
+# 2. 失败时: TEXT 包含由于版权/暴力/真人等原因被拦截的 *具体说明* (关键 Debug 信息)
+
+if res.finish_reason == "safety_blocked":
+    # Case A: 安全拦截 (无图片)
+    print(f"🛑 生成被拦截! 原因: {res.content}") 
+    #例如: "I cannot create images of specific real people."
+    
+elif res.media_parts:
+    # Case B: 成功生成
+    print(f"✅ 生成成功! 引导语: {res.content}")
+    print(f"图片已保存至: {res.media_parts[0].local_path}")
+    
+else:
+    # Case C: 其他异常
+    print(f"⚠️ 生成结束但无图片，请检查 Prompt。模型回复: {res.content}")
 
 # 语音合成 (TTS)
 res = client.generate(

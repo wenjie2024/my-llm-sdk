@@ -31,21 +31,29 @@ def _resolve_contents(prompt: str = None, contents: ContentInput = None) -> Cont
 def _get_text_for_estimation(contents: ContentInput) -> str:
     """
     Extract text representation for cost estimation.
-    For multimodal, combines text parts. Non-text parts contribute placeholder length.
+    Handles mixed types: str, PIL.Image, ContentPart.
     """
     if isinstance(contents, str):
         return contents
     
     parts = []
     for p in contents:
-        if p.type == "text" and p.text:
-            parts.append(p.text)
-        elif p.type == "image":
-            parts.append("[IMAGE:1000tokens]")  # Placeholder for image token estimation
-        elif p.type == "audio":
-            parts.append("[AUDIO:500tokens]")
-        elif p.type == "video":
-            parts.append("[VIDEO:2000tokens]")
+        # Handle str directly
+        if isinstance(p, str):
+            parts.append(p)
+        # Handle PIL.Image
+        elif hasattr(p, 'mode') and hasattr(p, 'size'):  # Duck-type PIL.Image check
+            parts.append("[IMAGE:1000tokens]")
+        # Handle ContentPart
+        elif hasattr(p, 'type'):
+            if p.type == "text" and p.text:
+                parts.append(p.text)
+            elif p.type == "image":
+                parts.append("[IMAGE:1000tokens]")
+            elif p.type == "audio":
+                parts.append("[AUDIO:500tokens]")
+            elif p.type == "video":
+                parts.append("[VIDEO:2000tokens]")
     return " ".join(parts)
 
 class LLMClient:
@@ -168,6 +176,10 @@ class LLMClient:
                     # Fix: User exposed settings dict in MergedConfig
                     project_settings = getattr(self.config, "settings", {})
                     effective_config["optimize_images"] = project_settings.get("optimize_images", True)
+                    
+                    # P2: Inject global max_output_tokens default if not set in request
+                    if "max_output_tokens" not in effective_config and "max_output_tokens" in project_settings:
+                         effective_config["max_output_tokens"] = project_settings["max_output_tokens"]
                 
                 return provider_instance.generate(
                     model_id=model_def.model_id, 

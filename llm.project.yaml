@@ -8,6 +8,7 @@ routing_policies:
 # Project-level settings (B+A config defaults)
 settings:
   optimize_images: true  # Convert PNG to JPEG for smaller files (can be overridden per-request)
+  # max_output_tokens: 65536  # Uncomment to increase global default limit (Gemini Pro supports up to 1M)
 
 model_registry:
   gpt-4:

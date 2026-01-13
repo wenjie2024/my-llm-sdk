@@ -6,15 +6,15 @@ from my_llm_sdk.providers.base import BaseProvider
 from my_llm_sdk.schemas import GenerationResponse, TokenUsage, ContentInput
 
 class MockAsyncProvider(BaseProvider):
-    async def generate_async(self, model: str, contents: ContentInput, api_key: str = None, **kwargs):
+    async def generate_async(self, model_id: str, contents: ContentInput, api_key: str = None, **kwargs):
         # Simulate Network Delay
         await asyncio.sleep(0.1)
-        return GenerationResponse(content="mock", model=model, provider="mock", usage=TokenUsage(0,0,0), finish_reason="stop")
+        return GenerationResponse(content="mock", model=model_id, provider="mock", usage=TokenUsage(0,0,0), finish_reason="stop")
 
-    def generate(self, model, contents: ContentInput, api_key=None, **kwargs):
+    def generate(self, model_id, contents: ContentInput, api_key=None, **kwargs):
         # Sync version sleeps blocks loop if not in thread
         time.sleep(0.1)
-        return GenerationResponse(content="mock", model=model, provider="mock", usage=TokenUsage(0,0,0), finish_reason="stop")
+        return GenerationResponse(content="mock", model=model_id, provider="mock", usage=TokenUsage(0,0,0), finish_reason="stop")
     
     # Required abstract methods
     def stream(self, model, contents: ContentInput, api_key=None, **kwargs): pass

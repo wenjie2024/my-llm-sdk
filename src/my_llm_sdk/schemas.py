@@ -26,7 +26,8 @@ class GenConfig(TypedDict, total=False):
     response_modalities: List[str]  # ["TEXT", "AUDIO", "IMAGE"]
     
     # Image generation parameters
-    image_size: str                 # "1024x1024", "landscape", "portrait"
+    image_size: str                 # "1K", "2K", "4K"
+    aspect_ratio: str               # "1:1","2:3","3:2","3:4","4:3","4:5","5:4","9:16","16:9","21:9"
     image_count: int                # Number of images to generate
     
     # Audio parameters
@@ -34,6 +35,7 @@ class GenConfig(TypedDict, total=False):
     audio_format: str               # "wav", "mp3"
     
     # Engineering parameters
+    max_output_tokens: int          # For long-form content (>8k)
     persist_media: bool             # Auto-save media to local files (default True)
     persist_dir: str                # Directory to save media files
     idempotency_key: str            # Prevent duplicate billing on retries
@@ -76,11 +78,22 @@ ContentInput = Union[str, List[ContentPart]]
 def normalize_content(content: ContentInput) -> List[ContentPart]:
     """
     Convert ContentInput to a normalized List[ContentPart].
-    Ensures backward compatibility with str prompts.
+    Handles mixed types: str, PIL.Image, ContentPart.
     """
     if isinstance(content, str):
         return [ContentPart(type="text", text=content)]
-    return content
+    
+    # Handle mixed list
+    result = []
+    for item in content:
+        if isinstance(item, str):
+            result.append(ContentPart(type="text", text=item))
+        elif hasattr(item, 'type'):  # ContentPart
+            result.append(item)
+        # PIL.Image will be handled separately in provider
+        # For normalize_content, we skip non-ContentPart items
+    return result
+
 
 @dataclass
 class TokenUsage:

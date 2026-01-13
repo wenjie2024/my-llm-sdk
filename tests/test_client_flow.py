@@ -20,7 +20,8 @@ def mock_loader():
             daily_spend_limit=1.0,
             api_keys={"echo": "secret"},
             resilience=ResilienceConfig(),
-            budget_strict_mode=True
+            budget_strict_mode=True,
+            settings={}
         )
         mock.return_value = config
         yield mock
