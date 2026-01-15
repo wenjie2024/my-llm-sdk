@@ -54,10 +54,10 @@ class RetryManager:
             try:
                 return func(*args, **kwargs)
             except Exception as e:
-                if not self._should_retry(e, retries):
+                if not self.should_retry(e, retries):
                     raise e
                 
-                delay = self._calculate_delay(retries)
+                delay = self.calculate_delay(retries)
                 
                 # Check 429 special handling
                 # Assuming exception message or type indicates 429
@@ -79,10 +79,10 @@ class RetryManager:
             try:
                 return await func(*args, **kwargs)
             except Exception as e:
-                if not self._should_retry(e, retries):
+                if not self.should_retry(e, retries):
                     raise e
                 
-                delay = self._calculate_delay(retries)
+                delay = self.calculate_delay(retries)
                 
                 if self._is_rate_limit(e):
                     if not self.config.wait_on_rate_limit:
@@ -94,7 +94,7 @@ class RetryManager:
                 await asyncio.sleep(delay)
                 retries += 1
 
-    def _should_retry(self, e: Exception, current_retries: int) -> bool:
+    def should_retry(self, e: Exception, current_retries: int) -> bool:
         if current_retries >= self.config.max_retries:
             return False
         
@@ -119,7 +119,7 @@ class RetryManager:
         msg = str(e).lower()
         return "429" in msg or "rate limit" in msg or "too many requests" in msg
 
-    def _calculate_delay(self, retries: int) -> float:
+    def calculate_delay(self, retries: int) -> float:
         # Exponential backoff: base * 2^retries + jitter
         delay = self.config.base_delay_s * (2 ** retries)
         jitter = random.uniform(0, 0.1 * delay)

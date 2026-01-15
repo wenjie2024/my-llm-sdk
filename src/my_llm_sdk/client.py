@@ -1,5 +1,6 @@
 import asyncio
 import os
+import time
 from typing import Optional, Dict, Union, Iterator, AsyncIterator, List
 from my_llm_sdk.config.loader import load_config
 from my_llm_sdk.budget.controller import BudgetController
@@ -314,32 +315,59 @@ class LLMClient:
         )
         
         # 3. Stream
-        status = 'success'
-        stream_gen = provider_instance.stream(model_def.model_id, resolved_contents, self.config.api_keys.get(provider_name))
+        retry_manager = self.retry_manager
+        retries = 0
         
+        status = 'success'
         accumulated_content = ""
         final_usage = None
         
         try:
-            for event in stream_gen:
-                if event.delta:
-                    accumulated_content += event.delta
-                
-                # Check for usage
-                if event.usage:
-                    final_usage = event.usage
-                
-                # Yield to user
-                yield event
-                
-                if event.error:
-                    status = 'failed'
-                    # Should we re-raise? Or just let the error event handle it?
-                    # We continue to let final logic run if possible, but usually error ends stream.
+            while True:
+                try:
+                    stream_gen = provider_instance.stream(model_def.model_id, resolved_contents, self.config.api_keys.get(provider_name))
                     
-        except Exception as e:
-            status = 'failed'
-            raise e
+                    # Fetch first item to validate connection
+                    try:
+                        first_event = next(stream_gen)
+                    except StopIteration:
+                        # Healthy but empty
+                        break
+                    
+                    # If success, yield first event
+                    yield first_event
+                    
+                    if first_event.delta:
+                         accumulated_content += first_event.delta
+                    if first_event.usage:
+                         final_usage = first_event.usage
+                    
+                    # Yield remainder
+                    for event in stream_gen:
+                        if event.delta:
+                            accumulated_content += event.delta
+                        
+                        if event.usage:
+                            final_usage = event.usage
+                        
+                        yield event
+                        
+                        if event.error:
+                            status = 'failed'
+                    
+                    break # Done
+    
+                except StopIteration:
+                    break
+                except Exception as e:
+                    if retry_manager.should_retry(e, retries):
+                         delay = retry_manager.calculate_delay(retries)
+                         print(f"⚠️ Stream Retry ({retries+1}) due to: {e}. Waiting {delay:.2f}s...")
+                         time.sleep(delay)
+                         retries += 1
+                         continue
+                    status = 'failed'
+                    raise e
         finally:
             # 4. Post-Update Ledger
             # If we got usage, usage it. Else estimate.
@@ -509,26 +537,57 @@ class LLMClient:
         
         # 3. Stream
         status = 'success'
-        stream_gen = provider_instance.stream_async(model_def.model_id, resolved_contents, self.config.api_keys.get(provider_name))
+        retry_manager = self.retry_manager
+        retries = 0
         
+        status = 'success'
         accumulated_content = ""
         final_usage = None
-        
+
         try:
-            async for event in stream_gen:
-                if event.delta:
-                     accumulated_content += event.delta
-                if event.usage:
-                     final_usage = event.usage
-                
-                yield event
-                
-                if event.error:
-                    status = 'failed'
+            while True:
+                try:
+                    stream_gen = provider_instance.stream_async(model_def.model_id, resolved_contents, self.config.api_keys.get(provider_name))
                     
-        except Exception as e:
-            status = 'failed'
-            raise e
+                    # Fetch first item to validate connection
+                    try:
+                        first_event = await stream_gen.__anext__()
+                    except StopAsyncIteration:
+                        break
+                    
+                    # If success, yield first event
+                    yield first_event
+                    
+                    if first_event.delta:
+                         accumulated_content += first_event.delta
+                    if first_event.usage:
+                         final_usage = first_event.usage
+                    
+                    # Yield remainder
+                    async for event in stream_gen:
+                        if event.delta:
+                            accumulated_content += event.delta
+                        if event.usage:
+                            final_usage = event.usage
+                        
+                        yield event
+                        
+                        if event.error:
+                            status = 'failed'
+                    
+                    break
+    
+                except StopAsyncIteration:
+                    break
+                except Exception as e:
+                    if retry_manager.should_retry(e, retries):
+                         delay = retry_manager.calculate_delay(retries)
+                         print(f"⚠️ Async Stream Retry ({retries+1}) due to: {e}. Waiting {delay:.2f}s...")
+                         await asyncio.sleep(delay)
+                         retries += 1
+                         continue
+                    status = 'failed'
+                    raise e
         finally:
             # 4. Post-Update Ledger (Async)
             input_tokens = 0
