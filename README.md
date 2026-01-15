@@ -246,7 +246,16 @@ res = client.generate(
     full_response=True
 )
 print(f"Video URL: {res.media_parts[0].file_uri}")
-```
+
+# 4. 图文生成注意事项
+# ⚠️ Doubao Seedream (doubao-image) 模型通常强制要求 2K (2048x2048) 分辨率。
+# 如果遇到 "InvalidParameter" 错误，请显式指定 image_size="2K"。
+res = client.generate(
+    "一只可爱的小猫",
+    model_alias="doubao-image", 
+    config={"image_size": "2K"}, 
+    full_response=True
+)
 
 ---
 
@@ -261,12 +270,44 @@ daily_spend_limit: 5.0
 ```
 
 ### llm.project.yaml（可提交 Git）
+主配置文件，定义项目的全局策略。
 ```yaml
+project_name: "my-awesome-app"
 model_registry:
+  # 引用自 llm.project.d/ 下的定义
   gemini-2.5-flash:
     provider: google
     model_id: gemini-2.5-flash
     rpm: 1000
+```
+
+### 🧩 模块化配置 (V0.6.2+)
+推荐将模型定义分散管理，而不是全部堆在主文件里。SDK 会自动加载 `llm.project.d/*.yaml`。
+
+**目录结构示例**:
+```text
+my-project/
+├── llm.project.yaml       # 主入口 (定义 routing, settings)
+└── llm.project.d/
+    ├── google.yaml        # 定义 gemini-3.0-pro, imagen-3 等
+    ├── qwen.yaml          # 定义 qwen-max, qwen-vl 等
+    └── volcengine.yaml    # 定义 doubao-thinking, doubao-image 等
+```
+
+**llm.project.d/volcengine.yaml 示例**:
+```yaml
+model_registry:
+  doubao-thinking:
+    provider: volcengine
+    model_id: "ep-20250101..." # 你的接入点 ID
+    config:
+      thought_mode: "middle"   # 默认思考强度
+
+  doubao-image:
+    provider: volcengine
+    model_id: "ep-20250101-seedream..."
+    config:
+      image_size: "2K"         # ⚠️ 豆包 Seedream 推荐/强制使用 2K 分辨率
 ```
 
 ### 重试配置

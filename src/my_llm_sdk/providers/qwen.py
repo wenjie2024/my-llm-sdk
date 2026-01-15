@@ -76,7 +76,17 @@ class QwenProvider(BaseProvider):
         t0 = time.time()
         
         # Parse config for image params
-        size = config.get("image_size", "1024*1024")
+        raw_size = config.get("image_size", "1K")
+        # Standardize size for dashscope (e.g. "1K" -> "1024*1024")
+        size_map = {
+            "1K": "1024*1024",
+            "2K": "2048*2048", # Fallback if model supports it
+        }
+        size = size_map.get(raw_size, raw_size)
+        if "*" not in size and raw_size != "1K":
+             # If it's still not formatted and not 1K, default to 1K for safety
+             size = "1024*1024"
+             
         n = config.get("image_count", 1)
         
         rsp = ImageSynthesis.call(

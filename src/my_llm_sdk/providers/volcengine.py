@@ -112,7 +112,13 @@ class VolcengineProvider(BaseProvider):
         if task == TaskType.IMAGE_GENERATION:
             # Map standard 'image_size' to 'size' (e.g. "2K")
             if "image_size" in req_kwargs:
-                req_kwargs["size"] = req_kwargs.pop("image_size")
+                raw_size = req_kwargs.pop("image_size")
+                size_map = {
+                    "1K": "1k",
+                    "2K": "2k",
+                    "4K": "4k",
+                }
+                req_kwargs["size"] = size_map.get(raw_size, raw_size)
             
             # --- Defaults & Parameter Mapping (V0.6.1) ---
             
@@ -212,9 +218,28 @@ class VolcengineProvider(BaseProvider):
             
             # Extract content from response
             if hasattr(completion, 'choices') and completion.choices:
+                 # Standard Chat Completions or similar
                  content = completion.choices[0].message.content
             elif hasattr(completion, 'output'):
-                 content = getattr(completion.output, 'text', str(completion))
+                 # Responses API (Seed-1.6 / DeepSeek)
+                 # output can be a list of reasoning items and message items
+                 if isinstance(completion.output, list):
+                     for item in completion.output:
+                         # Look for type='message'
+                         if hasattr(item, 'type') and item.type == 'message':
+                             if hasattr(item, 'content'):
+                                 # content can be list of ResponseOutputText
+                                 if isinstance(item.content, list):
+                                     for part in item.content:
+                                         if hasattr(part, 'text'):
+                                              content += part.text
+                                 elif hasattr(item.content, 'text'):
+                                      content += item.content.text
+                                 elif isinstance(item.content, str):
+                                      content += item.content
+                 else:
+                     # Fallback if output is object with text
+                     content = getattr(completion.output, 'text', str(completion))
                  
                  # Usage extraction
                  if hasattr(completion.output, 'usage') and completion.output.usage:
