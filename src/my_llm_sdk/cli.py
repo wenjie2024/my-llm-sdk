@@ -120,7 +120,106 @@ def main():
     
     if args.command == "init":
         print("🚀 Initializing SDK Configuration...")
-        copy_template("template.project.yaml", "llm.project.yaml", "Project Config")
+        
+        # 1. Main Project Config (Minimal)
+        project_content = """project_name: my-awesome-project
+routing_policies:
+  - name: default-priority
+    strategy: priority
+    params:
+      priority_list: gemini-2.5-flash,qwen-max
+
+# Project-level settings
+settings:
+  optimize_images: true
+
+allowed_regions: ["us", "cn", "sg"]
+allow_logging: true
+budget_strict_mode: true
+
+model_registry:
+  # This section is now mainly managed in llm.project.d/*.yaml
+  # Global defaults can go here.
+  default:
+    name: default
+    provider: google
+    model_id: gemini-2.5-flash
+    pricing:
+      input_per_1m_tokens: 0.075
+      output_per_1m_tokens: 0.30
+"""
+        with open("llm.project.yaml", "w", encoding='utf-8') as f:
+            f.write(project_content)
+        print("✅ Created llm.project.yaml")
+
+        # 2. Modular Configs (llm.project.d/)
+        os.makedirs("llm.project.d", exist_ok=True)
+        
+        # Google Template
+        google_yaml = """model_registry:
+  gemini-2.5-flash:
+    name: gemini-2.5-flash
+    provider: google
+    model_id: gemini-2.5-flash
+    pricing:
+      input_per_1m_tokens: 0.075
+      output_per_1m_tokens: 0.30
+
+  gemini-2.5-pro:
+    name: gemini-2.5-pro
+    provider: google
+    model_id: gemini-2.5-pro
+    pricing:
+      input_per_1m_tokens: 1.25
+      output_per_1m_tokens: 5.00
+"""
+        with open(os.path.join("llm.project.d", "google.yaml"), "w", encoding='utf-8') as f:
+            f.write(google_yaml)
+            
+        # Volcengine Template
+        volc_yaml = """model_registry:
+  doubao-thinking:
+    name: doubao-thinking
+    provider: volcengine
+    model_id: doubao-seed-1-6-251015 # Replace with your Endpoint ID
+    pricing:
+      input_per_1m_tokens: 0.8
+      output_per_1m_tokens: 2.0
+
+  doubao-image:
+    name: doubao-image
+    provider: volcengine
+    model_id: doubao-seedream-4-5-251128 # Replace with your Endpoint ID
+    pricing:
+      per_image_output: 0.02
+"""
+        with open(os.path.join("llm.project.d", "volcengine.yaml"), "w", encoding='utf-8') as f:
+            f.write(volc_yaml)
+            
+        # Qwen Template
+        qwen_yaml = """model_registry:
+  qwen-max:
+    name: qwen-max
+    provider: dashscope
+    model_id: qwen-max
+    pricing:
+      input_per_1m_tokens: 1.20
+      output_per_1m_tokens: 6.00
+
+  qwen-plus:
+    name: qwen-plus
+    provider: dashscope
+    model_id: qwen-plus
+    pricing:
+      input_per_1m_tokens: 0.40
+      output_per_1m_tokens: 1.20
+"""
+        with open(os.path.join("llm.project.d", "qwen.yaml"), "w", encoding='utf-8') as f:
+            f.write(qwen_yaml)
+            
+        print("✅ Created llm.project.d/ with templates (google, volcengine, qwen)")
+
+        # 3. User Secrets Config
         copy_template("template.user.yaml", "config.yaml", "User Config (Secrets)")
         
         # Security: Add to gitignore

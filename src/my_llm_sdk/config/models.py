@@ -7,14 +7,17 @@ class RoutingPolicy(BaseModel):
     params: Dict[str, str] = Field(default_factory=dict)
 
 class ModelPricing(BaseModel):
-    input_per_1m_tokens: float
-    output_per_1m_tokens: float
+    input_per_1m_tokens: float = 0.0
+    output_per_1m_tokens: float = 0.0
     
     # V0.4.0 Multimodal Pricing (Optional)
     per_image_input: Optional[float] = None      # USD per input image
     per_image_output: Optional[float] = None     # USD per output image (image generation)
     per_audio_second_input: Optional[float] = None   # USD per second of input audio
     per_audio_second_output: Optional[float] = None  # USD per second of output audio (TTS)
+    
+    # V0.6.0 Video Generation
+    per_video_output: Optional[float] = None      # USD per generated video (e.g., Doubao-Seedance)
     
     # P1: TTS character-based billing (some models bill by input text length)
     per_output_character: Optional[float] = None  # USD per character for TTS input text
@@ -87,6 +90,8 @@ class UserConfig(BaseModel):
     """Configuration loaded from user home (Local only)."""
     api_keys: Dict[str, str] = Field(default_factory=dict)
     endpoints: List[Endpoint] = Field(default_factory=list)
+    # Simple endpoints map: provider -> url (loaded from config.yaml 'endpoints')
+    provider_endpoints: Dict[str, str] = Field(default_factory=dict)
     personal_routing_policies: List[RoutingPolicy] = Field(default_factory=dict)
     personal_model_overrides: Dict[str, ModelDefinition] = Field(default_factory=dict)
     
@@ -102,6 +107,8 @@ class MergedConfig(BaseModel):
     final_routing_policies: List[RoutingPolicy]
     final_model_registry: Dict[str, ModelDefinition]
     final_endpoints: List[Endpoint]
+    # Simple endpoints map: provider -> url
+    provider_endpoints: Dict[str, str] = Field(default_factory=dict)
     
     # Merged Flags
     allow_logging: bool

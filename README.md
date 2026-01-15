@@ -210,6 +210,44 @@ res = client.generate(
 print(f"Transcription: {res.content}")
 ```
 
+# --- V0.6.0 Volcengine (Doubao) 示例 ---
+
+# 1. 深度思考 (Doubao-Thinking)
+# 支持多模态输入 (图片 + 文本)
+res = client.generate(
+    model_alias="doubao-thinking", 
+    contents=[
+        ContentPart(type="image", file_uri="local_image.jpg"),
+        "这张图里有什么？详细分析。"
+    ],
+    config={"thought_mode": "low"}, # 思考模式: low / middle / high
+    full_response=True
+)
+print(res.content)
+
+# 2. DeepSeek R1 / V3
+# 自动路由至火山引擎 Ark Runtime
+res = client.generate(
+    "如何实现快速排序？",
+    model_alias="deepseek-v3",
+    full_response=True
+)
+
+# 3. 视频生成 (Seedance)
+# 自动处理任务创建与轮询
+res = client.generate(
+    model_alias="doubao-video",
+    prompt="无人机以极快速度穿越森林，4k画质",
+    config={
+        "task": TaskType.VIDEO_GENERATION,
+        "resolution": "1080p", # 720p / 1080p
+        "duration": 5          # 3 / 5 / 10 秒
+    },
+    full_response=True
+)
+print(f"Video URL: {res.media_parts[0].file_uri}")
+```
+
 ---
 
 ## 🔧 配置参考
@@ -268,6 +306,22 @@ network:
     - volcengine   # 字节豆包
     - baidu        # 文心一言
     - zhipu        # 智谱 GLM
+
+### 自定义 API Endpoint (V0.6+)
+如果您需要覆盖默认的厂商 API 地址（例如使用自建代理或内网地址），请在 `config.yaml` 的 `endpoints` 列表中添加：
+
+```yaml
+endpoints:
+  # 覆盖火山引擎默认地址 (name = provider_name)
+  - name: "volcengine"
+    url: "https://ark.cn-beijing.volces.com/api/v3"
+    region: "cn-beijing"
+
+  # 覆盖 OpenAI 地址
+  - name: "openai"
+    url: "https://my-proxy.com/v1"
+    region: "us"
+```
 ```
 
 ---

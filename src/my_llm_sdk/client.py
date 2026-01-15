@@ -11,6 +11,7 @@ from my_llm_sdk.doctor.report import print_report
 from my_llm_sdk.providers.base import BaseProvider, EchoProvider
 from my_llm_sdk.providers.gemini import GeminiProvider
 from my_llm_sdk.providers.qwen import QwenProvider
+from my_llm_sdk.providers.volcengine import VolcengineProvider
 from my_llm_sdk.config.exceptions import ConfigurationError
 from my_llm_sdk.utils.network import bypass_proxy
 from my_llm_sdk.schemas import (
@@ -95,6 +96,10 @@ class LLMClient:
         # This ensures endpoint selection (INTL vs China) respects bypass settings
         with self._get_network_context("dashscope"):
             self.providers["dashscope"] = QwenProvider()
+
+        # Init Volcengine
+        with self._get_network_context("volcengine"):
+            self.providers["volcengine"] = VolcengineProvider()
         
         # 6. Init Resilience Manager [NEW]
         from my_llm_sdk.utils.resilience import RetryManager
@@ -201,13 +206,26 @@ class LLMClient:
                     # P2: Inject global max_output_tokens default if not set in request
                     if "max_output_tokens" not in effective_config and "max_output_tokens" in project_settings:
                          effective_config["max_output_tokens"] = project_settings["max_output_tokens"]
+                         
+                # Check for configured endpoint
+                # Config structure: config.yaml -> endpoints -> provider_name
+                # self.config is MergedConfig which wraps project and user config.
+                base_url = None
+                # Access via attribute 'provider_endpoints' (Dict[str, str])
+                if hasattr(self.config, "provider_endpoints"):
+                    base_url = self.config.provider_endpoints.get(provider_name)
+                    
+                # Pass base_url if found
+                gen_kwargs = {
+                    "model_id": model_def.model_id, 
+                    "contents": resolved_contents, 
+                    "api_key": api_key,
+                    "config": effective_config
+                }
+                if base_url:
+                    gen_kwargs["base_url"] = base_url
                 
-                return provider_instance.generate(
-                    model_id=model_def.model_id, 
-                    contents=resolved_contents, 
-                    api_key=api_key,
-                    config=effective_config
-                )
+                return provider_instance.generate(**gen_kwargs)
             
             # Decorate it manually
             retriable_op = self.retry_manager.retry_policy(_op)
@@ -463,12 +481,20 @@ class LLMClient:
                      project_settings = getattr(self.config, "settings", {})
                      effective_config["optimize_images"] = project_settings.get("optimize_images", True)
 
-                 return await provider_instance.generate_async(
-                     model_id=model_def.model_id, 
-                     contents=resolved_contents, 
-                     api_key=api_key,
-                     config=effective_config
-                 )
+                 base_url = None
+                 if hasattr(self.config, "provider_endpoints"):
+                     base_url = self.config.provider_endpoints.get(provider_name)
+                 
+                 gen_kwargs = {
+                     "model_id": model_def.model_id, 
+                     "contents": resolved_contents, 
+                     "api_key": api_key,
+                     "config": effective_config
+                 }
+                 if base_url:
+                     gen_kwargs["base_url"] = base_url
+
+                 return await provider_instance.generate_async(**gen_kwargs)
              
              retriable_op = self.retry_manager.retry_policy(_op)
              

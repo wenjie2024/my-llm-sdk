@@ -8,7 +8,7 @@ from .exceptions import ConfigurationError
 def load_yaml(path: str) -> dict:
     if not os.path.exists(path):
         return {}
-    with open(path, 'r') as f:
+    with open(path, 'r', encoding='utf-8') as f:
         return yaml.safe_load(f) or {}
 
 def merge_configs(project: ProjectConfig, user: UserConfig) -> MergedConfig:
@@ -56,10 +56,14 @@ def merge_configs(project: ProjectConfig, user: UserConfig) -> MergedConfig:
                 # Log warning? For now just skip.
                 pass
                 
+
     return MergedConfig(
         final_routing_policies=final_policies,
         final_model_registry=final_models,
         final_endpoints=final_endpoints,
+        # Convert list of Endpoints to Dict[provider_name, url] for fast lookup
+        # Assuming Endpoint.name corresponds to provider name for overrides.
+        provider_endpoints={ep.name: ep.url for ep in final_endpoints},
         allow_logging=project.allow_logging,
         budget_strict_mode=project.budget_strict_mode,
         daily_spend_limit=user.daily_spend_limit,
@@ -72,6 +76,21 @@ def merge_configs(project: ProjectConfig, user: UserConfig) -> MergedConfig:
 
 def load_config(project_path: str = "llm.project.yaml", user_path: str = "~/.config/llm-sdk/config.yaml") -> MergedConfig:
     p_data = load_yaml(project_path)
+    
+    # [NEW] Scan llm.project.d/ for modular catalogs
+    project_dir = os.path.dirname(os.path.abspath(project_path))
+    conf_d_path = os.path.join(project_dir, "llm.project.d")
+    if os.path.isdir(conf_d_path):
+        for filename in sorted(os.listdir(conf_d_path)):
+            if filename.endswith(".yaml") or filename.endswith(".yml"):
+                extra_data = load_yaml(os.path.join(conf_d_path, filename))
+                # Merge model_registry
+                if "model_registry" in extra_data:
+                    if "model_registry" not in p_data:
+                        p_data["model_registry"] = {}
+                    p_data["model_registry"].update(extra_data["model_registry"])
+                # Could merge routing_policies too if needed later
+    
     u_path_expanded = os.path.expanduser(user_path)
     u_data = load_yaml(u_path_expanded)
     

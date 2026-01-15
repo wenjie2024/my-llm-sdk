@@ -9,6 +9,7 @@ class TaskType(str, Enum):
     """Explicit task types for multimodal routing."""
     TEXT_GENERATION = "text_generation"
     IMAGE_GENERATION = "image_generation"
+    VIDEO_GENERATION = "video_generation"
     TTS = "tts"
     ASR = "asr"
     VISION = "vision"
@@ -107,6 +108,7 @@ class TokenUsage:
     
     # P1: Multimodal Output Tracking (billing-critical)
     images_generated: int = 0              # Output images count
+    videos_generated: int = 0              # Output videos count
     audio_seconds_generated: float = 0.0   # Output audio duration (TTS)
     tts_input_characters: int = 0          # TTS input text length (some models bill by chars)
     
@@ -135,6 +137,10 @@ class GenerationResponse:
     def audio(self) -> Optional[bytes]:
         parts = [p.inline_data for p in self.media_parts if p.type == "audio" and p.inline_data]
         return parts[0] if parts else None
+
+    @property
+    def videos(self) -> List[bytes]:
+        return [p.inline_data for p in self.media_parts if p.type == "video" and p.inline_data]
 
     def __str__(self):
         return self.content  # Allow easy printing: print(response)
