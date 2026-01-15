@@ -246,6 +246,24 @@ personal_model_overrides:
     provider: openai
     model_id: llama3
     api_base: "http://localhost:11434/v1"
+    api_base: "http://localhost:11434/v1"
+```
+
+### 网络配置 (V0.6+)
+针对国内环境优化：开启 VPN 全局代理时，自动绕过系统代理直连国内模型（Qwen/Doubao），降低延迟。
+
+```yaml
+network:
+  # 总开关：是否启用直连优化（默认 True）
+  proxy_bypass_enabled: true
+  
+  # 需要直连的 Provider 列表
+  bypass_proxy:
+    - alibaba      # 通义千问 (DashScope)
+    - dashscope    # 别名
+    - volcengine   # 字节豆包
+    - baidu        # 文心一言
+    - zhipu        # 智谱 GLM
 ```
 
 ---
