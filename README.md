@@ -252,6 +252,10 @@ personal_model_overrides:
 ### 网络配置 (V0.6+)
 针对国内环境优化：开启 VPN 全局代理时，自动绕过系统代理直连国内模型（Qwen/Doubao），降低延迟。
 
+> **配置位置**：
+> - **个人生效**：`config.yaml` (推荐，不影响他人)
+> - **项目生效**：`llm.project.yaml` (团队统一策略)
+
 ```yaml
 network:
   # 总开关：是否启用直连优化（默认 True）
