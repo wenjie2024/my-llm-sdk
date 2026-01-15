@@ -89,8 +89,12 @@ class LLMClient:
             "openai": EchoProvider(),
             "echo": EchoProvider(),
             "google": GeminiProvider(),
-            "dashscope": QwenProvider()
         }
+        
+        # Init DashScope/Qwen with network context awareness
+        # This ensures endpoint selection (INTL vs China) respects bypass settings
+        with self._get_network_context("dashscope"):
+            self.providers["dashscope"] = QwenProvider()
         
         # 6. Init Resilience Manager [NEW]
         from my_llm_sdk.utils.resilience import RetryManager
@@ -105,6 +109,9 @@ class LLMClient:
         Returns appropriate network context for a provider.
         China providers (alibaba, volcengine, etc.) bypass system proxy for direct connection.
         """
+        if not self.config.network.proxy_bypass_enabled:
+             return nullcontext()
+             
         bypass_list = self.config.network.bypass_proxy
         if provider_name in bypass_list:
             return bypass_proxy()

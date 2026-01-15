@@ -50,10 +50,16 @@ class ResilienceConfig(BaseModel):
 
 class NetworkConfig(BaseModel):
     """Network configuration for proxy handling."""
+    # Master switch for this feature
+    proxy_bypass_enabled: bool = Field(
+        default=True,
+        description="Master switch to enable/disable proxy bypass logic"
+    )
+
     # Providers that should bypass system proxy (direct connection)
     # Useful for China LLM providers when using VPN
     bypass_proxy: List[str] = Field(
-        default_factory=lambda: ["alibaba", "volcengine", "baidu", "zhipu"],
+        default_factory=lambda: ["alibaba", "dashscope", "volcengine", "baidu", "zhipu"],
         description="Provider names to bypass system proxy"
     )
     
