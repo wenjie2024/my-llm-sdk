@@ -46,6 +46,16 @@ class ResilienceConfig(BaseModel):
     wait_on_rate_limit: bool = True
     
     # Circuit Breaker defaults can go here too if needed
+
+
+class NetworkConfig(BaseModel):
+    """Network configuration for proxy handling."""
+    # Providers that should bypass system proxy (direct connection)
+    # Useful for China LLM providers when using VPN
+    bypass_proxy: List[str] = Field(
+        default_factory=lambda: ["alibaba", "volcengine", "baidu", "zhipu"],
+        description="Provider names to bypass system proxy"
+    )
     
 class ProjectConfig(BaseModel):
     """Configuration loaded from project root (Git tracked)."""
@@ -61,6 +71,9 @@ class ProjectConfig(BaseModel):
     # Resilience
     resilience: ResilienceConfig = Field(default_factory=ResilienceConfig)
     
+    # Network
+    network: NetworkConfig = Field(default_factory=NetworkConfig)
+    
     # Project Settings (V0.4.0)
     settings: Dict[str, Any] = Field(default_factory=dict)
 
@@ -71,8 +84,12 @@ class UserConfig(BaseModel):
     personal_routing_policies: List[RoutingPolicy] = Field(default_factory=dict)
     personal_model_overrides: Dict[str, ModelDefinition] = Field(default_factory=dict)
     
+    # Network
+    network: Optional[NetworkConfig] = None
+    
     # Budget
     daily_spend_limit: float = 1.0
+
 
 class MergedConfig(BaseModel):
     """Runtime configuration after merging Project and User configs."""
@@ -89,5 +106,9 @@ class MergedConfig(BaseModel):
     # Resilience
     resilience: ResilienceConfig
     
+    # Network (proxy bypass)
+    network: NetworkConfig = Field(default_factory=NetworkConfig)
+    
     # Merged Settings
     settings: Dict[str, Any]
+

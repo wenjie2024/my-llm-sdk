@@ -2,6 +2,7 @@ import asyncio
 import os
 import time
 from typing import Optional, Dict, Union, Iterator, AsyncIterator, List
+from contextlib import contextmanager, nullcontext
 from my_llm_sdk.config.loader import load_config
 from my_llm_sdk.budget.controller import BudgetController
 from my_llm_sdk.budget.pricing import calculate_estimated_cost, calculate_actual_cost, estimate_content_tokens
@@ -11,6 +12,7 @@ from my_llm_sdk.providers.base import BaseProvider, EchoProvider
 from my_llm_sdk.providers.gemini import GeminiProvider
 from my_llm_sdk.providers.qwen import QwenProvider
 from my_llm_sdk.config.exceptions import ConfigurationError
+from my_llm_sdk.utils.network import bypass_proxy
 from my_llm_sdk.schemas import (
     GenerationResponse, StreamEvent, ContentInput, ContentPart, normalize_content
 )
@@ -97,6 +99,17 @@ class LLMClient:
         # 7. Init Voice Service [P1]
         from my_llm_sdk.services.voice import VoiceService
         self.voice = VoiceService(self)
+
+    def _get_network_context(self, provider_name: str):
+        """
+        Returns appropriate network context for a provider.
+        China providers (alibaba, volcengine, etc.) bypass system proxy for direct connection.
+        """
+        bypass_list = self.config.network.bypass_proxy
+        if provider_name in bypass_list:
+            return bypass_proxy()
+        return nullcontext()
+
 
     def generate(
         self, 
@@ -192,8 +205,9 @@ class LLMClient:
             # Decorate it manually
             retriable_op = self.retry_manager.retry_policy(_op)
             
-            # Execute
-            response_obj = retriable_op()
+            # Execute (with proxy bypass for China providers)
+            with self._get_network_context(provider_name):
+                response_obj = retriable_op()
             
             # 4. Post-update Ledger (Using accurate data)
             # Calculate cost based on ACTUAL usage if available
@@ -323,51 +337,52 @@ class LLMClient:
         final_usage = None
         
         try:
-            while True:
-                try:
-                    stream_gen = provider_instance.stream(model_def.model_id, resolved_contents, self.config.api_keys.get(provider_name))
-                    
-                    # Fetch first item to validate connection
+            with self._get_network_context(provider_name):
+                while True:
                     try:
-                        first_event = next(stream_gen)
-                    except StopIteration:
-                        # Healthy but empty
-                        break
-                    
-                    # If success, yield first event
-                    yield first_event
-                    
-                    if first_event.delta:
-                         accumulated_content += first_event.delta
-                    if first_event.usage:
-                         final_usage = first_event.usage
-                    
-                    # Yield remainder
-                    for event in stream_gen:
-                        if event.delta:
-                            accumulated_content += event.delta
+                        stream_gen = provider_instance.stream(model_def.model_id, resolved_contents, self.config.api_keys.get(provider_name))
                         
-                        if event.usage:
-                            final_usage = event.usage
+                        # Fetch first item to validate connection
+                        try:
+                            first_event = next(stream_gen)
+                        except StopIteration:
+                            # Healthy but empty
+                            break
                         
-                        yield event
+                        # If success, yield first event
+                        yield first_event
                         
-                        if event.error:
-                            status = 'failed'
-                    
-                    break # Done
+                        if first_event.delta:
+                             accumulated_content += first_event.delta
+                        if first_event.usage:
+                             final_usage = first_event.usage
+                        
+                        # Yield remainder
+                        for event in stream_gen:
+                            if event.delta:
+                                accumulated_content += event.delta
+                            
+                            if event.usage:
+                                final_usage = event.usage
+                            
+                            yield event
+                            
+                            if event.error:
+                                status = 'failed'
+                        
+                        break # Done
     
-                except StopIteration:
-                    break
-                except Exception as e:
-                    if retry_manager.should_retry(e, retries):
-                         delay = retry_manager.calculate_delay(retries)
-                         print(f"⚠️ Stream Retry ({retries+1}) due to: {e}. Waiting {delay:.2f}s...")
-                         time.sleep(delay)
-                         retries += 1
-                         continue
-                    status = 'failed'
-                    raise e
+                    except StopIteration:
+                        break
+                    except Exception as e:
+                        if retry_manager.should_retry(e, retries):
+                             delay = retry_manager.calculate_delay(retries)
+                             print(f"⚠️ Stream Retry ({retries+1}) due to: {e}. Waiting {delay:.2f}s...")
+                             time.sleep(delay)
+                             retries += 1
+                             continue
+                        status = 'failed'
+                        raise e
         finally:
             # 4. Post-Update Ledger
             # If we got usage, usage it. Else estimate.
@@ -449,7 +464,10 @@ class LLMClient:
                  )
              
              retriable_op = self.retry_manager.retry_policy(_op)
-             response_obj = await retriable_op()
+             
+             # Execute (with proxy bypass for China providers)
+             with self._get_network_context(provider_name):
+                 response_obj = await retriable_op()
              
              # 4. Post-Update Ledger (Async)
              final_cost = estimated_cost
@@ -545,49 +563,50 @@ class LLMClient:
         final_usage = None
 
         try:
-            while True:
-                try:
-                    stream_gen = provider_instance.stream_async(model_def.model_id, resolved_contents, self.config.api_keys.get(provider_name))
-                    
-                    # Fetch first item to validate connection
+            with self._get_network_context(provider_name):
+                while True:
                     try:
-                        first_event = await stream_gen.__anext__()
+                        stream_gen = provider_instance.stream_async(model_def.model_id, resolved_contents, self.config.api_keys.get(provider_name))
+                        
+                        # Fetch first item to validate connection
+                        try:
+                            first_event = await stream_gen.__anext__()
+                        except StopAsyncIteration:
+                            break
+                        
+                        # If success, yield first event
+                        yield first_event
+                        
+                        if first_event.delta:
+                             accumulated_content += first_event.delta
+                        if first_event.usage:
+                             final_usage = first_event.usage
+                        
+                        # Yield remainder
+                        async for event in stream_gen:
+                            if event.delta:
+                                accumulated_content += event.delta
+                            if event.usage:
+                                final_usage = event.usage
+                            
+                            yield event
+                            
+                            if event.error:
+                                status = 'failed'
+                        
+                        break
+    
                     except StopAsyncIteration:
                         break
-                    
-                    # If success, yield first event
-                    yield first_event
-                    
-                    if first_event.delta:
-                         accumulated_content += first_event.delta
-                    if first_event.usage:
-                         final_usage = first_event.usage
-                    
-                    # Yield remainder
-                    async for event in stream_gen:
-                        if event.delta:
-                            accumulated_content += event.delta
-                        if event.usage:
-                            final_usage = event.usage
-                        
-                        yield event
-                        
-                        if event.error:
-                            status = 'failed'
-                    
-                    break
-    
-                except StopAsyncIteration:
-                    break
-                except Exception as e:
-                    if retry_manager.should_retry(e, retries):
-                         delay = retry_manager.calculate_delay(retries)
-                         print(f"⚠️ Async Stream Retry ({retries+1}) due to: {e}. Waiting {delay:.2f}s...")
-                         await asyncio.sleep(delay)
-                         retries += 1
-                         continue
-                    status = 'failed'
-                    raise e
+                    except Exception as e:
+                        if retry_manager.should_retry(e, retries):
+                             delay = retry_manager.calculate_delay(retries)
+                             print(f"⚠️ Async Stream Retry ({retries+1}) due to: {e}. Waiting {delay:.2f}s...")
+                             await asyncio.sleep(delay)
+                             retries += 1
+                             continue
+                        status = 'failed'
+                        raise e
         finally:
             # 4. Post-Update Ledger (Async)
             input_tokens = 0
