@@ -41,3 +41,5 @@ tts_test_output.wav
 tests/integration/test_config_settings.py
 tests/*.log
 tests/*.jpg
+
+audio/
