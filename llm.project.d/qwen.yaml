@@ -1,0 +1,62 @@
+model_registry:
+  qwen-max:
+    name: qwen-max
+    provider: dashscope
+    model_id: qwen-max
+    pricing:
+      input_per_1m_tokens: 1.20
+      output_per_1m_tokens: 6.00
+  
+  qwen-plus:
+    name: qwen-plus
+    provider: dashscope
+    model_id: qwen-plus
+    pricing:
+      input_per_1m_tokens: 0.40
+      output_per_1m_tokens: 1.20
+  
+  qwen-flash:
+    name: qwen-flash
+    provider: dashscope
+    model_id: qwen-flash
+    pricing:
+      input_per_1m_tokens: 0.05
+      output_per_1m_tokens: 0.40
+  
+  qwen-vl-max:
+    name: qwen-vl-max
+    provider: dashscope
+    model_id: qwen-vl-max
+    pricing:
+      input_per_1m_tokens: 0.80
+      output_per_1m_tokens: 2.40
+      per_image_input: 0.0008
+  
+  qwen-audio-turbo:
+    name: qwen-audio-turbo
+    provider: dashscope
+    model_id: qwen-audio-turbo
+    pricing:
+      per_audio_second_input: 0.000035
+  
+  qwen-image-plus:
+    name: qwen-image-plus
+    provider: dashscope
+    model_id: qwen-image-plus
+    pricing:
+      per_image_output: 0.02
+  
+  qwen3-tts-flash:
+    name: qwen3-tts-flash
+    provider: dashscope
+    model_id: qwen3-tts-flash
+    pricing:
+      per_audio_second_output: 0.0003
+      per_output_character: 0.00001
+  
+  qwen3-asr-flash:
+    name: qwen3-asr-flash
+    provider: dashscope
+    model_id: qwen3-asr-flash
+    pricing:
+      per_audio_second_input: 0.00003
