@@ -27,8 +27,10 @@ build/
 # Development Only (Internal)
 plan/
 docs/
+# scripts/  # Keep the scripts
+benchmark_outputs/
+benchmark_results.log
 verify_*.py
-benchmark.py
 GEMINI.md
 ROADMAP.md
 
