@@ -3,6 +3,10 @@
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
 [![Python](https://img.shields.io/badge/Python-3.10+-blue.svg)](https://www.python.org/)
 
+<p align="center">
+  <img src="assets/banner.png" alt="My LLM SDK" width="800">
+</p>
+
 # My LLM SDK
 
 **One codebase, multiple models.**
@@ -64,7 +68,7 @@ api_keys:
 daily_spend_limit: 5.0
 ```
 
-### Modular Config (V0.6.2+)
+### Modular Config
 
 SDK auto-loads model definitions from `llm.project.d/*.yaml`:
 

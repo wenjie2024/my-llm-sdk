@@ -3,6 +3,10 @@
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
 [![Python](https://img.shields.io/badge/Python-3.10+-blue.svg)](https://www.python.org/)
 
+<p align="center">
+  <img src="assets/banner.png" alt="My LLM SDK" width="800">
+</p>
+
 # My LLM SDK
 
 **一套代码，调用多家模型。**
@@ -64,7 +68,7 @@ api_keys:
 daily_spend_limit: 5.0
 ```
 
-### 模块化配置 (V0.6.2+)
+### 模块化配置
 
 SDK 自动加载 `llm.project.d/*.yaml` 中的模型定义：
 
