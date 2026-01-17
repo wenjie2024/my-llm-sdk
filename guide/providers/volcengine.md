@@ -6,14 +6,17 @@
 
 ## 支持的模型
 
-| 别名 | 模型 ID | 能力 |
+| 别名 | 模型 ID 示例 | 能力 |
 |:---|:---|:---|
-| `doubao-thinking` | doubao-seed-1-6-* | 深度思考 / Vision |
-| `deepseek-v3` | deepseek-v3-* | 文本 (DeepSeek) |
-| `doubao-image` | doubao-seedream-* | 图片生成 |
-| `doubao-video` | doubao-seedance-* | 视频生成 |
+| `doubao-thinking` | doubao-seed-1-6-251015 | 深度思考 / Vision |
+| `deepseek-v3` | deepseek-v3-2-251201 | 文本 (DeepSeek) |
+| `doubao-image` | doubao-seedream-4-5-251128 | 图片生成 |
+| `doubao-video` | doubao-seedance-1-0-pro-250528 | 视频生成 |
 
-> 💡 `model_id` 需要填写您在火山引擎控制台创建的 **接入点 ID**。
+> 💡 **Model ID 说明**：
+> - 上表中的 Model ID 是**公共模型标识符**，可直接使用
+> - Model ID 可能随官方更新而变化，请关注 [火山引擎控制台](https://console.volcengine.com/ark) 的最新版本
+> - 如需使用私有部署，可将 `model_id` 替换为您创建的接入点 ID（格式如 `ep-xxxxxx`）
 
 ---
 
@@ -128,18 +131,21 @@ if res.media_parts:
 在 `llm.project.d/volcengine.yaml` 中定义模型：
 
 ```yaml
+# Volcengine (Doubao) Models
+# Note: Model IDs may change with official updates.
+
 model_registry:
   doubao-thinking:
     provider: volcengine
-    model_id: "ep-20250101..."  # 您的接入点 ID
+    model_id: doubao-seed-1-6-251015  # 公共 Model ID，可能随版本更新
     config:
-      thought_mode: "middle"    # 默认思考强度
+      thought_mode: "middle"
 
   doubao-image:
     provider: volcengine
-    model_id: "ep-20250101-seedream..."
+    model_id: doubao-seedream-4-5-251128  # 公共 Model ID
     config:
-      image_size: "2K"          # ⚠️ Seedream 推荐/强制使用 2K
+      image_size: "2K"  # ⚠️ Seedream 强制要求 2K
 ```
 
 API Key 配置在 `config.yaml`：
@@ -159,8 +165,13 @@ endpoints:
 
 ## 常见问题
 
-### Q: `InvalidParameter` 错误
-A: 检查 `image_size` 是否设置为 `"2K"`。Seedream 不支持 `1K`。
+### Q: `InvalidParameter` 或 `BadRequest` 错误
+A: 常见原因：
+1. **图片生成缺少 2K 分辨率**：Seedream 模型必须设置 `image_size: "2K"`
+2. **Model ID 过期**：公共 Model ID 可能随官方更新而变化，请检查 [火山引擎控制台](https://console.volcengine.com/ark) 获取最新版本
 
-### Q: 如何获取接入点 ID？
-A: 登录 [火山引擎控制台](https://console.volcengine.com/ark) → 模型推理 → 创建接入点 → 复制 ID。
+### Q: 公共 Model ID 和 接入点 ID 有什么区别？
+A: 
+- **公共 Model ID**（如 `doubao-seed-1-6-251015`）：官方提供的标准模型标识符，所有用户可用
+- **接入点 ID**（如 `ep-xxxxxx`）：用户在控制台创建的私有部署端点，仅限本账户使用
+
