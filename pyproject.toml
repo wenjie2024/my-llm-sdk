@@ -12,6 +12,7 @@ dependencies = [
     "httpx>=0.24.0",
     "google-genai>=1.0.0",
     "dashscope>=1.14.0",
+    "volcengine-python-sdk[ark]>=1.0.0",
 ]
 
 [build-system]
