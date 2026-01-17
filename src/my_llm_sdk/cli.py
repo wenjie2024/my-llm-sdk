@@ -161,37 +161,107 @@ model_registry:
     name: gemini-2.5-flash
     provider: google
     model_id: gemini-2.5-flash
+    rpm: 1000
+    tpm: 1000000
     pricing:
-      input_per_1m_tokens: 0.075
-      output_per_1m_tokens: 0.30
-
+      input_per_1m_tokens: 0.30
+      output_per_1m_tokens: 2.50
+      per_image_input: 0.001
+      per_audio_second_input: 0.00004
+  
   gemini-2.5-pro:
     name: gemini-2.5-pro
     provider: google
     model_id: gemini-2.5-pro
+    rpm: 150
+    tpm: 2000000
     pricing:
       input_per_1m_tokens: 1.25
-      output_per_1m_tokens: 5.00
+      output_per_1m_tokens: 10.00
+      per_image_input: 0.002
+      per_audio_second_input: 0.0001
+  
+  gemini-3.0-flash:
+    name: gemini-3.0-flash
+    provider: google
+    model_id: gemini-3-flash-preview
+    rpm: 1000
+    tpm: 1000000
+    pricing:
+      input_per_1m_tokens: 0.50
+      output_per_1m_tokens: 3.00
+      per_image_input: 0.001
+      per_audio_second_input: 0.00005
+      per_audio_second_output: 0.0006
+  
+  gemini-3.0-pro:
+    name: gemini-3.0-pro
+    provider: google
+    model_id: gemini-3-pro-preview
+    rpm: 25
+    tpm: 1000000
+    pricing:
+      input_per_1m_tokens: 2.00
+      output_per_1m_tokens: 12.00
+      per_image_input: 0.003
+      per_audio_second_input: 0.0002
+  
+  gemini-3-pro-image-preview:
+    name: gemini-3-pro-image-preview
+    provider: google
+    model_id: gemini-3-pro-image-preview
+    rpm: 50
+    tpm: 100000
+    pricing:
+      per_image_output: 0.04
+  
+  gemini-2.5-flash-preview-tts:
+    name: gemini-2.5-flash-preview-tts
+    provider: google
+    model_id: gemini-2.5-flash-preview-tts
+    rpm: 60
+    tpm: 100000
+    pricing:
+      per_audio_second_output: 0.0005
+      per_output_character: 0.000015
 """
         with open(os.path.join("llm.project.d", "google.yaml"), "w", encoding='utf-8') as f:
             f.write(google_yaml)
             
         # Volcengine Template
-        volc_yaml = """model_registry:
+        volc_yaml = """# Volcengine (Doubao) Models
+# Note: Model IDs may change with official updates. Check Volcengine console for latest versions.
+
+model_registry:
   doubao-thinking:
     name: doubao-thinking
     provider: volcengine
-    model_id: doubao-seed-1-6-251015 # Replace with your Endpoint ID
+    model_id: doubao-seed-1-6-251015  # Public model ID, may update over time
     pricing:
       input_per_1m_tokens: 0.8
       output_per_1m_tokens: 2.0
-
+  
+  deepseek-v3:
+    name: deepseek-v3
+    provider: volcengine
+    model_id: deepseek-v3-2-251201  # Public model ID, may update over time
+    pricing:
+      input_per_1m_tokens: 1.0
+      output_per_1m_tokens: 2.0
+  
   doubao-image:
     name: doubao-image
     provider: volcengine
-    model_id: doubao-seedream-4-5-251128 # Replace with your Endpoint ID
+    model_id: doubao-seedream-4-5-251128  # Public model ID, may update over time
     pricing:
       per_image_output: 0.02
+  
+  doubao-video:
+    name: doubao-video
+    provider: volcengine
+    model_id: doubao-seedance-1-0-pro-250528  # Public model ID, may update over time
+    pricing:
+      per_video_output: 0.20
 """
         with open(os.path.join("llm.project.d", "volcengine.yaml"), "w", encoding='utf-8') as f:
             f.write(volc_yaml)
@@ -205,7 +275,7 @@ model_registry:
     pricing:
       input_per_1m_tokens: 1.20
       output_per_1m_tokens: 6.00
-
+  
   qwen-plus:
     name: qwen-plus
     provider: dashscope
@@ -213,6 +283,45 @@ model_registry:
     pricing:
       input_per_1m_tokens: 0.40
       output_per_1m_tokens: 1.20
+  
+  qwen-flash:
+    name: qwen-flash
+    provider: dashscope
+    model_id: qwen-flash
+    pricing:
+      input_per_1m_tokens: 0.05
+      output_per_1m_tokens: 0.40
+  
+  qwen-vl-max:
+    name: qwen-vl-max
+    provider: dashscope
+    model_id: qwen-vl-max
+    pricing:
+      input_per_1m_tokens: 0.80
+      output_per_1m_tokens: 2.40
+      per_image_input: 0.0008
+  
+  qwen-image-plus:
+    name: qwen-image-plus
+    provider: dashscope
+    model_id: qwen-image-plus
+    pricing:
+      per_image_output: 0.02
+  
+  qwen3-tts-flash:
+    name: qwen3-tts-flash
+    provider: dashscope
+    model_id: qwen3-tts-flash
+    pricing:
+      per_audio_second_output: 0.0003
+      per_output_character: 0.00001
+  
+  qwen3-asr-flash:
+    name: qwen3-asr-flash
+    provider: dashscope
+    model_id: qwen3-asr-flash
+    pricing:
+      per_audio_second_input: 0.00003
 """
         with open(os.path.join("llm.project.d", "qwen.yaml"), "w", encoding='utf-8') as f:
             f.write(qwen_yaml)

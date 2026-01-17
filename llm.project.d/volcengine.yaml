@@ -1,18 +1,21 @@
+# Volcengine (Doubao) Models
+# Note: Model IDs may change with official updates. Check Volcengine console for latest versions.
+
 model_registry:
   # 1. 深度思考 (Doubao-Seed)
   doubao-thinking:
     name: doubao-thinking
     provider: volcengine
-    model_id: doubao-seed-1-6-251015 # 用户填入接入点 ID
+    model_id: doubao-seed-1-6-251015  # Public model ID, may update over time
     pricing:
       input_per_1m_tokens: 0.8
       output_per_1m_tokens: 2.0
   
-  # 2. DeepSeek 正式版
+  # 2. DeepSeek V3 (via Volcengine)
   deepseek-v3:
     name: deepseek-v3
     provider: volcengine
-    model_id: deepseek-v3-2-251201 # 用户填入接入点 ID
+    model_id: deepseek-v3-2-251201  # Public model ID, may update over time
     pricing:
       input_per_1m_tokens: 1.0
       output_per_1m_tokens: 2.0
@@ -21,14 +24,15 @@ model_registry:
   doubao-image:
     name: doubao-image
     provider: volcengine
-    model_id: doubao-seedream-4-5-251128 # 用户填入接入点 ID
+    model_id: doubao-seedream-4-5-251128  # Public model ID, may update over time
     pricing:
       per_image_output: 0.02
   
-  # 4. 音画生成 (Seedance)
+  # 4. 视频生成 (Seedance)
   doubao-video:
     name: doubao-video
     provider: volcengine
-    model_id: doubao-seedance-1-0-pro-250528 # 用户填入接入点 ID
+    model_id: doubao-seedance-1-0-pro-250528  # Public model ID, may update over time
     pricing:
-      per_video_output: 0.20 # 预估价格
+      per_video_output: 0.20  # Estimated price
+
