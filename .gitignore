@@ -41,6 +41,7 @@ tests/e2e_outputs/
 tts_test_output.wav
 
 # Temporary Tests
+quickstart_demo/
 tests/integration/test_config_settings.py
 tests/*.log
 tests/*.jpg
