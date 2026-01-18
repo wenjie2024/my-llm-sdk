@@ -14,7 +14,7 @@ TEACHER_PROMPT = "请你以一名亲切、专业的小学语文老师身份，�
 
 IMAGE_PROMPT_TEMPLATE = "请根据以下对古诗《画》的专家解读，生成一张精美的、富有诗意的、具有中国传统美学风格的插画。解读内容如下：\n\n{interpretation}"
 
-OUTPUT_DIR = "e2e_outputs/benchmark"
+OUTPUT_DIR = "outputs/tests/poem_illustration"
 
 MODELS = {
     "doubao": {
@@ -53,7 +53,8 @@ def run_benchmark():
             text_res = client.generate(
                 prompt=f"古诗：\n{POEM}\n\n指令：{TEACHER_PROMPT}",
                 model_alias=model_config['text'],
-                full_response=True
+                full_response=True,
+                config={"persist_media": False}
             )
             interpretation = text_res.content
             latency_text = time.time() - start_time
@@ -84,7 +85,8 @@ def run_benchmark():
                 prompt=image_prompt,
                 config={
                     "task": TaskType.IMAGE_GENERATION,
-                    "image_size": i_size
+                    "image_size": i_size,
+                    "persist_media": False
                 },
                 full_response=True
             )

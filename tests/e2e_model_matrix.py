@@ -18,7 +18,7 @@ from my_llm_sdk.client import LLMClient
 from my_llm_sdk.schemas import TaskType, GenConfig, ContentPart
 
 # Output directory
-OUTPUT_DIR = Path(__file__).parent / "e2e_outputs"
+OUTPUT_DIR = Path(__file__).parent.parent / "outputs" / "tests" / "model_matrix"
 OUTPUT_DIR.mkdir(exist_ok=True)
 
 # Common prompt for all image generation models
@@ -80,7 +80,8 @@ def test_image_gen(client: LLMClient, model_alias: str, provider_name: str, mode
         # P1: Use TaskType to route to Image Generation
         config: GenConfig = {
             "task": TaskType.IMAGE_GENERATION,
-            "image_size": "1024x1024"
+            "image_size": "1024x1024",
+            "persist_media": False
         }
         
         response = client.generate(
@@ -122,7 +123,8 @@ def test_vision(client: LLMClient, model_alias: str, provider_name: str, model_n
         ]
         
         config: GenConfig = {
-            "task": TaskType.VISION # Explicit task type helps (though auto-detection also works)
+            "task": TaskType.VISION, # Explicit task type helps (though auto-detection also works)
+            "persist_media": False
         }
 
         # Response

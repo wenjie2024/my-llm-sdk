@@ -294,9 +294,9 @@ class LLMClient:
         import datetime
         
         if not save_dir:
-            # Default: outputs/YYYYMMDD
+            # Default: outputs/storage/YYYYMMDD
             date_str = datetime.date.today().strftime("%Y%m%d")
-            save_dir = os.path.join(os.getcwd(), "outputs", date_str)
+            save_dir = os.path.join(os.getcwd(), "outputs", "storage", date_str)
             
         for part in response.media_parts:
             if part.inline_data:

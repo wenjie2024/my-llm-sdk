@@ -18,7 +18,7 @@ from my_llm_sdk.client import LLMClient
 from my_llm_sdk.schemas import TaskType, GenConfig
 
 # Output directory
-OUTPUT_DIR = Path(__file__).parent / "e2e_outputs"
+OUTPUT_DIR = Path(__file__).parent.parent / "outputs" / "tests" / "image_gen"
 OUTPUT_DIR.mkdir(exist_ok=True)
 
 

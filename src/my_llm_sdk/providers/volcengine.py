@@ -109,8 +109,8 @@ class VolcengineProvider(BaseProvider):
         
         # Pop custom parameters that SDK methods don't accept
         thought_mode = req_kwargs.pop("thought_mode", None)
+        req_kwargs.pop("persist_media", None)
 
-        # 1. Image Generation (Seedream)
         # 1. Image Generation (Seedream)
         if task == TaskType.IMAGE_GENERATION:
             # Map standard 'image_size' to 'size' (e.g. "2K")

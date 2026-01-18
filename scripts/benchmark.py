@@ -10,7 +10,7 @@ from datetime import datetime
 from my_llm_sdk.client import LLMClient
 
 # --- Configuration ---
-OUTPUT_DIR = "benchmark_outputs"
+OUTPUT_DIR = "outputs/scripts/text_benchmark"
 
 MODELS = [
     # Google Gemini
@@ -57,7 +57,7 @@ def run_benchmark():
             start_time = time.time()
             try:
                 print(f"  - {p_name}...", end="", flush=True)
-                res = client.generate(p_text, model_alias=model, full_response=True)
+                res = client.generate(p_text, model_alias=model, full_response=True, config={"persist_media": False})
                 elapsed = time.time() - start_time
                 
                 content = res.content or ""

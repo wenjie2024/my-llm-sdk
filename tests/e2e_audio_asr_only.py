@@ -20,7 +20,7 @@ def main():
     # Target File
     # Using the user's provided file from previous steps if available, or fall back to known file
     # User mentioned: audio/Dad_voice.m4a (M4A format)
-    target_file = os.path.abspath("audio/Dad_voice.m4a")
+    target_file = os.path.abspath("scripts/audio_test/resources/Dad_voice.m4a")
     
     if not os.path.exists(target_file):
         print(f"❌ Target file not found: {target_file}")

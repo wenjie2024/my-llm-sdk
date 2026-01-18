@@ -22,7 +22,7 @@ def main():
     print("✅ SDK Client Initialized")
     
     # Paths
-    ref_audio_path = os.path.abspath("audio/Dad_voice.m4a")
+    ref_audio_path = os.path.abspath("scripts/audio_test/resources/Dad_voice.m4a")
     if not os.path.exists(ref_audio_path):
         print(f"❌ Reference audio not found at: {ref_audio_path}")
         return
