@@ -98,6 +98,27 @@ python -m my_llm_sdk.cli budget top --by model
 
 ---
 
+## 🧪 测试
+
+```bash
+# 回归测试（跳过音频测试）
+pytest tests/
+
+# 包含音频测试
+pytest tests/ -m "audio"
+
+# E2E 完整测试（图像生成 + Vision + 翻译）
+python tests/e2e_full_suite.py
+
+# 统一 Benchmark（文本 + 延迟 + 图像）
+python scripts/benchmark_unified.py
+
+# 仅文本 Benchmark
+python scripts/benchmark_unified.py --skip-image
+```
+
+---
+
 ## 🗺️ Roadmap
 
 - [x] 核心管控与预算拦截

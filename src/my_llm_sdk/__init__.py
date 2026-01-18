@@ -1,2 +1,2 @@
 """LLM SDK - Vibe Edition"""
-__version__ = "0.5.4"
+__version__ = "0.9.0"
