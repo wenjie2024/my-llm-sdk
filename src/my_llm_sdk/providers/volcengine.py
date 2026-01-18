@@ -7,6 +7,9 @@ from my_llm_sdk.schemas import (
     GenerationResponse, TokenUsage, StreamEvent,
     ContentInput, ContentPart, normalize_content, TaskType
 )
+import logging
+
+logger = logging.getLogger(__name__)
 
 def _extract_text(contents: ContentInput) -> str:
     """Helper to extract text from mixed content for specialized APIs."""
@@ -143,9 +146,9 @@ class VolcengineProvider(BaseProvider):
                         max_images=int(max_imgs)
                     )
                 except ImportError:
-                     print("Warning: SequentialImageGenerationOptions not found in SDK. Skipping max_images.")
+                     logger.warning("SequentialImageGenerationOptions not found in SDK. Skipping max_images.")
                 except Exception as e:
-                     print(f"Warning: Failed to set max_images: {e}")
+                     logger.warning(f"Failed to set max_images: {e}")
 
             req_kwargs.setdefault("stream", False)
             
@@ -285,7 +288,7 @@ class VolcengineProvider(BaseProvider):
                      # TODO: Handle inline image by uploading or warning user? 
                      # Seedance usually requires URL. check if we can skip inline for now.
              
-             print(f"Creating Video Task: {model_id}")
+             logger.info(f"Creating Video Task: {model_id}")
              # Use req_kwargs which contains config items like resolution, duration
              
              create_result = client.content_generation.tasks.create(
@@ -296,7 +299,7 @@ class VolcengineProvider(BaseProvider):
              
              task_id = create_result.id
              # ... (Polling logic remains same, just ensure create uses req_kwargs)
-             print(f"Video Task ID: {task_id}. Polling...")
+             logger.info(f"Video Task ID: {task_id}. Polling...")
              
              import time
              status = "unknown"
@@ -320,15 +323,7 @@ class VolcengineProvider(BaseProvider):
                          media_parts=[ContentPart(type="video", file_uri=video_url, mime_type="video/mp4")],
                          usage=TokenUsage(videos_generated=1),
                          finish_reason="stop"
-                         # extra_info not supported in __init__ of GenerationResponse currently? 
-                         # Checking schema... Schema has extra: Dict.
-                         # But checking constructor...
                      )
-                     # Actually, let's check schemas.py to be sure. 
-                     # If unexpected keyword argument 'extra_info', it means GenerationResponse doesn't take it.
-                     # Let's remove it for now to fix the crash.
-                     resp.extra = {"full_result": str(get_result)}
-                     return resp
                  elif status == "failed":
                      return GenerationResponse(content=f"[VIDEO FAILED] {get_result.error if hasattr(get_result, 'error') else 'Unknown Error'}", model=model_id, provider="volcengine", finish_reason="error")
                  

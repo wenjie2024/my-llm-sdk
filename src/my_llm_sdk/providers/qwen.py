@@ -2,6 +2,7 @@ from http import HTTPStatus
 import dashscope
 import time
 import base64
+import os
 import requests
 from typing import Iterator, List, Dict, Any, Optional
 from .base import BaseProvider
@@ -123,51 +124,6 @@ class QwenProvider(BaseProvider):
             )
         else:
             raise RuntimeError(f"Qwen Image Gen Failed: {rsp.code} - {rsp.message}")
-
-        result = SpeechSynthesizer.call(**call_args)
-        
-        if result.get_audio_data() is not None:
-            audio_data = result.get_audio_data()
-            t1 = time.time()
-            
-            # Create content part
-            media_part = ContentPart(
-                type="audio",
-                inline_data=audio_data,
-                mime_type=f"audio/{fmt}"
-            )
-            
-            usage = TokenUsage(
-                tts_input_characters=len(text),
-                audio_seconds_generated=0.0 # TODO: Estimate duration if possible
-            )
-            
-            return GenerationResponse(
-                content="",
-                model=model_id,
-                provider="dashscope",
-                usage=usage,
-                finish_reason="stop",
-                timing={"total": t1 - t0},
-                media_parts=[media_part]
-            )
-        else:
-            # Enhanced Error Logging
-            # Try to get code/message if available, or dump str(result)
-            err_code = getattr(result, 'code', 'Unknown')
-            err_msg = getattr(result, 'message', str(result))
-            
-            # SDK v1.25+ often hides status in get_response() if not directly in attributes
-            if hasattr(result, 'get_response'):
-                try:
-                    resp = result.get_response()
-                    if isinstance(resp, dict):
-                        err_code = resp.get('code', resp.get('status_code', err_code))
-                        err_msg = resp.get('message', err_msg)
-                except:
-                    pass
-            
-            raise RuntimeError(f"Qwen TTS Failed [{err_code}]: {err_msg}")
 
     def _generate_speech_realtime(self, model_id: str, text: str, config: Dict[str, Any]) -> GenerationResponse:
         """Handle TTS using Realtime API (WebSocket) - Required for some models."""
@@ -331,7 +287,7 @@ class QwenProvider(BaseProvider):
                      os.close(fd)
                      ref_seg.export(temp_wav, format="wav")
                      call_args["prompt_speech"] = temp_wav
-                 except:
+                 except Exception:
                      call_args["prompt_speech"] = prompt_speech_path
              else:
                  call_args["prompt_speech"] = ref_audio
@@ -363,16 +319,21 @@ class QwenProvider(BaseProvider):
                 media_parts=[media_part]
             )
         else:
-            # Enhanced Error Logging... (already present in loop, but need to ensure indentation matches)
-            # The previous replace removed the top part but left the 'result = ...' part.
-            # I am replacing the chunk starting from 't0 = ...' to 'else:' logic.
-            # Wait, the previous replace removed the function def header? No, it removed the duplicated header.
-            # Let's ensure we are replacing the correct block.
-            pass # Just providing content for tool args below.
+            # Enhanced Error Logging
+            err_code = getattr(result, 'code', 'Unknown')
+            err_msg = getattr(result, 'message', str(result))
+            if hasattr(result, 'get_response'):
+                try:
+                    resp = result.get_response()
+                    if isinstance(resp, dict):
+                        err_code = resp.get('code', resp.get('status_code', err_code))
+                        err_msg = resp.get('message', err_msg)
+                except Exception:
+                    pass
+            raise RuntimeError(f"Qwen TTS Failed [{err_code}]: {err_msg}")
+
+    def _recognize_speech(self, model_id: str, contents: ContentInput, config: Dict[str, Any]) -> GenerationResponse:
         """Handle ASR task using MultiModalConversation (matching ASRClient)."""
-        # Note: qwen-audio / qwen3-asr-flash often use MultiModalConversation
-        # Logic adapted from audio/asr_client.py
-        
         import io
         
         t0 = time.time()

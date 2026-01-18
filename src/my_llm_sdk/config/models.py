@@ -92,7 +92,7 @@ class UserConfig(BaseModel):
     endpoints: List[Endpoint] = Field(default_factory=list)
     # Simple endpoints map: provider -> url (loaded from config.yaml 'endpoints')
     provider_endpoints: Dict[str, str] = Field(default_factory=dict)
-    personal_routing_policies: List[RoutingPolicy] = Field(default_factory=dict)
+    personal_routing_policies: List[RoutingPolicy] = Field(default_factory=list)
     personal_model_overrides: Dict[str, ModelDefinition] = Field(default_factory=dict)
     
     # Network

@@ -591,7 +591,6 @@ class LLMClient:
         retry_manager = self.retry_manager
         retries = 0
         
-        status = 'success'
         accumulated_content = ""
         final_usage = None
 

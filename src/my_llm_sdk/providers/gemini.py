@@ -131,7 +131,9 @@ class GeminiProvider(BaseProvider):
                     img.save(output_io, format="JPEG", quality=85)
                     return output_io.getvalue()
         except Exception:
-            # Fallback to original if any error occurs
+            # Fallback to original if any error occurs (logged for debugging)
+            import logging
+            logging.getLogger(__name__).debug("Image optimization failed, using original bytes")
             return raw_bytes
 
     
@@ -358,29 +360,12 @@ class GeminiProvider(BaseProvider):
                             if "audio" in m: p_type = "audio"
                             elif "video" in m: p_type = "video"
                             
-                            # Image optimization: Convert PNG to JPEG if enabled
-                            if p_type == "image" and optimize_images and "png" in m.lower():
-                                try:
-                                    from PIL import Image
-                                    import io
-                                    img = Image.open(io.BytesIO(raw_data))
-                                    # Convert RGBA to RGB for JPEG
-                                    if img.mode == "RGBA":
-                                        img = img.convert("RGB")
-                                    # Resize if too large (> 1920px width)
-                                    if img.width > 1920:
-                                        ratio = 1920 / img.width
-                                        new_size = (1920, int(img.height * ratio))
-                                        img = img.resize(new_size, Image.LANCZOS)
-                                    # Export as JPEG
-                                    buf = io.BytesIO()
-                                    img.save(buf, format="JPEG", quality=85)
-                                    raw_data = buf.getvalue()
-                                    m = "image/jpeg"
-                                except ImportError:
-                                    pass  # Pillow not available, keep original
-                                except Exception:
-                                    pass  # Any error, keep original
+                            # Image optimization: Use centralized method
+                            if p_type == "image" and optimize_images:
+                                optimized = self._process_image_response(raw_data, optimize=True)
+                                if optimized != raw_data:
+                                    raw_data = optimized
+                                    m = "image/jpeg"  # Updated after optimization
                             
                             media_parts.append(ContentPart(
                                 type=p_type,
@@ -399,7 +384,7 @@ class GeminiProvider(BaseProvider):
                     finish_reason = raw_reason.lower().replace("finishreason.", "")
                 
                 # Safety block detection: IMAGE requested but no media returned
-                requested_modalities = config_params.get('response_modalities', []) if 'config_params' in dir() else []
+                requested_modalities = []
                 raw_cfg = kwargs.get('config', {})
                 if isinstance(raw_cfg, dict):
                     requested_modalities = raw_cfg.get('response_modalities', [])
