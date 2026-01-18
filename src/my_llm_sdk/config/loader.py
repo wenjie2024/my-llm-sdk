@@ -94,8 +94,27 @@ def load_config(project_path: str = "llm.project.yaml", user_path: str = "~/.con
     u_path_expanded = os.path.expanduser(user_path)
     u_data = load_yaml(u_path_expanded)
     
-    # Env Var Overrides (Simple Example)
-    # In a real app, we might walk Pydantic fields or use a library like pydantic-settings
+    # 4. Env Var Overrides (Security Best Practice)
+    # Inject Env Vars into api_keys if present and not in file (or empty in file)
+    if "api_keys" not in u_data:
+        u_data["api_keys"] = {}
+    
+    env_map = {
+        "google": "GEMINI_API_KEY",
+        "dashscope": "DASHSCOPE_API_KEY",
+        "openai": "OPENAI_API_KEY",
+        "volcengine": "VOLCENGINE_API_KEY"
+    }
+    
+    for provider, env_var in env_map.items():
+        val = os.getenv(env_var)
+        if val:
+            # Override if empty or missing in file
+            # If explicit "YOUR_KEY" placeholder exists, override it too? 
+            # Let's override if val exists, to be friendly.
+            current = u_data["api_keys"].get(provider)
+            if not current or "YOUR_" in current:
+                 u_data["api_keys"][provider] = val
     
     project_cfg = ProjectConfig(**p_data) if p_data else ProjectConfig(project_name="default")
     user_cfg = UserConfig(**u_data) if u_data else UserConfig()
