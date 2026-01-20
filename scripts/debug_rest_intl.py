@@ -7,7 +7,7 @@ import os
 dashscope.base_http_api_url = "https://dashscope-intl.aliyuncs.com/api/v1"
 
 # API Key
-api_key = os.getenv("DASHSCOPE_API_KEY") or "sk-ca653b0fadc343d6a5ae3b97f6deacd2"
+api_key = os.getenv("DASHSCOPE_API_KEY") or "YOUR_DASHSCOPE_API_KEY"
 dashscope.api_key = api_key
 
 def test_rest_intl():

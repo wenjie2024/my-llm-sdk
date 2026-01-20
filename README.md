@@ -20,15 +20,17 @@
 
 ```bash
 # 1. 安装
-pip install -e <SDK路径>/my-llm-sdk
+pip install my-llm-sdk
 
-# 2. 初始化配置
-python -m my_llm_sdk.cli init
+# 2. 初始化项目 (生成 config.yaml)
+llm-sdk init
 
-# 3. 编辑 config.yaml，填入 API Key
+# 3. 编辑 config.yaml，填入你的 API Key
+# api_keys:
+#   google: "YOUR_KEY"
 
-# 4. 调用
-python -m my_llm_sdk.cli generate --model gemini-2.5-flash --prompt "你好"
+# 4. 快速调用
+llm-sdk generate --model gemini-2.5-flash --prompt "Hello World"
 ```
 
 ---
@@ -87,13 +89,13 @@ my-project/
 
 ```bash
 # 今日消耗
-python -m my_llm_sdk.cli budget status
+llm-sdk budget status
 
 # 消耗趋势
-python -m my_llm_sdk.cli budget report --days 7
+llm-sdk budget report --days 7
 
 # 消耗排行
-python -m my_llm_sdk.cli budget top --by model
+llm-sdk budget top --by model
 ```
 
 ---
@@ -126,7 +128,7 @@ python scripts/benchmark_unified.py --skip-image
 - [x] 多模态支持 (Vision / TTS / ASR / Image Gen)
 - [x] Volcengine Provider (Doubao / DeepSeek)
 - [x] 运维报表与 CLI 工具
-- [ ] 发布到 PyPI
+- [x] 发布到 PyPI
 
 ---
 

@@ -206,12 +206,30 @@ model_registry:
       per_image_input: 0.003
       per_audio_second_input: 0.0002
   
+  gemini-2.5-flash-image:
+    name: gemini-2.5-flash-image
+    provider: google
+    model_id: gemini-2.5-flash-image
+    rpm: 100
+    tpm: 100000
+    pricing:
+      per_image_output: 0.02
+  
   gemini-3-pro-image-preview:
     name: gemini-3-pro-image-preview
     provider: google
     model_id: gemini-3-pro-image-preview
     rpm: 50
     tpm: 100000
+    pricing:
+      per_image_output: 0.04
+  
+  imagen-4.0-generate:
+    name: imagen-4.0-generate
+    provider: google
+    model_id: imagen-4.0-generate-001
+    rpm: 60
+    tpm: 50000
     pricing:
       per_image_output: 0.04
   
@@ -233,6 +251,7 @@ model_registry:
 # Note: Model IDs may change with official updates. Check Volcengine console for latest versions.
 
 model_registry:
+  # 1. 深度思考 (Doubao-Seed)
   doubao-thinking:
     name: doubao-thinking
     provider: volcengine
@@ -241,6 +260,7 @@ model_registry:
       input_per_1m_tokens: 0.8
       output_per_1m_tokens: 2.0
   
+  # 2. DeepSeek V3 (via Volcengine)
   deepseek-v3:
     name: deepseek-v3
     provider: volcengine
@@ -249,6 +269,7 @@ model_registry:
       input_per_1m_tokens: 1.0
       output_per_1m_tokens: 2.0
   
+  # 3. 图片生成 (Seedream)
   doubao-image:
     name: doubao-image
     provider: volcengine
@@ -256,12 +277,13 @@ model_registry:
     pricing:
       per_image_output: 0.02
   
+  # 4. 视频生成 (Seedance)
   doubao-video:
     name: doubao-video
     provider: volcengine
     model_id: doubao-seedance-1-0-pro-250528  # Public model ID, may update over time
     pricing:
-      per_video_output: 0.20
+      per_video_output: 0.20  # Estimated price
 """
         with open(os.path.join("llm.project.d", "volcengine.yaml"), "w", encoding='utf-8') as f:
             f.write(volc_yaml)
@@ -300,6 +322,13 @@ model_registry:
       input_per_1m_tokens: 0.80
       output_per_1m_tokens: 2.40
       per_image_input: 0.0008
+  
+  qwen-audio-turbo:
+    name: qwen-audio-turbo
+    provider: dashscope
+    model_id: qwen-audio-turbo
+    pricing:
+      per_audio_second_input: 0.000035
   
   qwen-image-plus:
     name: qwen-image-plus

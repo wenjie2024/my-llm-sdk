@@ -299,8 +299,49 @@
 
 # 推荐落地顺序
 
-1. **V0.2.0：Structured Output + Streaming + Retry/Backoff + max_wait_timeout + Breaker**
-2. **V0.3.0：Async + Async Ledger（队列单写入 worker + strict 预占用同步点）**
-3. **V0.5.0：Operations & Reporting (CLI Reports)**
-4. **V0.5.5：Cost-aware Routing**
-5. **V0.4.0 (Later)：Multimodal**
+1. **V0.2.0：Structured Output + Streaming + Retry/Backoff + max_wait_timeout + Breaker** ✅
+2. **V0.3.0：Async + Async Ledger（队列单写入 worker + strict 预占用同步点）** ✅
+3. **V0.5.0：Operations & Reporting (CLI Reports)** ✅
+4. **V0.5.5：Cost-aware Routing** ❌
+5. **V0.4.0 (Later)：Multimodal** ✅ (部分完成)
+
+---
+
+# 未完成功能汇总
+
+## 待实现功能（按优先级排序）
+
+| 优先级 | 功能 | 版本 | 描述 |
+|:---:|:---|:---|:---|
+| P0 | **发布到 PyPI** | - | 用户可直接 `pip install my-llm-sdk` |
+| P1 | **Cost-aware Router** | V0.5.0-B | 基于真实 usage/价格的成本优选路由，引入 p50/p95 延迟、失败率评分 |
+| P2 | **Tokenizer 集成** | V0.6.0-A | tiktoken 精准估算，减少 precheck "误杀/漏放" |
+| P3 | **Contract Tests** | V0.6.0-B | DRY_RUN 契约测试，CI 自动检测供应商 API 变化 |
+| P4 | **TTS Streaming Refactor** | V0.4.0-C | 长文本 TTS 语调连贯性优化，WebSocket 流式输入 |
+
+## 详细说明
+
+### P0: 发布到 PyPI
+- 配置 `pyproject.toml` 发布元数据
+- 设置 GitHub Actions 自动发布流程
+- 编写发布文档
+
+### P1: Cost-aware Router (V0.5.0-B)
+- 基于 ledger 真实 usage + pricing 做成本优选
+- router score 引入：p50/p95 latency、fail_rate、cost、quality_tier
+- 自动降级策略（超预算 / endpoint 不健康）
+
+### P2: Tokenizer 集成 (V0.6.0-A)
+- OpenAI-compat 模型：可选 tiktoken 精准估算
+- Gemini/Qwen：优先使用 provider usage 字段后结算
+- 无 usage 响应：标记 `usage_unknown=True`
+
+### P3: Contract Tests (V0.6.0-B)
+- DRY_RUN 全链路契约测试（config→router→adapter→ledger）
+- 真实 provider 最小探测（可选、可跳过）
+- CI 能在 provider API 变化时第一时间发现
+
+### P4: TTS Streaming Refactor (V0.4.0-C)
+- QwenProvider 支持 Long-lived WebSocket 连接
+- 流式输入文本（chunked text）不中断 Session
+- 解决短句拼接导致的语调/语速不一致问题

@@ -27,9 +27,9 @@ except ImportError:
     raise
 
 # Hardcoded or Env Config
-# User's config.yaml has this key: sk-ca653b0fadc343d6a5ae3b97f6deacd2
-# I will use os.getenv first, then fallback to the one seen in config.yaml if needed for repro
-API_KEY = os.getenv("DASHSCOPE_API_KEY") or "sk-ca653b0fadc343d6a5ae3b97f6deacd2"
+# User's config.yaml has this key: ...
+# Hardcoded key removed for security
+API_KEY = os.getenv("DASHSCOPE_API_KEY") or "YOUR_DASHSCOPE_API_KEY"
 
 # Configuration
 VOICE_ID = "qwen-tts-vc-father-voice-20251207194748170-5620"
