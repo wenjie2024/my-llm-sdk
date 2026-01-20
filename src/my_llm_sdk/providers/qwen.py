@@ -140,7 +140,7 @@ class QwenProvider(BaseProvider):
 
         t0 = time.time()
         voice_cfg = config.get("voice_config", {})
-        voice_id = voice_cfg.get("voice_name", "qwen-tts-vc-father-voice-20251207194748170-5620") # Default to verified voice?
+        voice_id = voice_cfg.get("voice_name", "sambert-zhichu-v1") # Safe default standard voice
         
         # Audio accumulator callback
         class SDKRealtimeCallback(QwenTtsRealtimeCallback):
