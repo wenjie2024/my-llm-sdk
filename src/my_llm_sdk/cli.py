@@ -90,7 +90,7 @@ def main():
     # Generate Command
     gen_parser = subparsers.add_parser("generate", help="Generate text")
     gen_parser.add_argument("--prompt", help="Prompt for generation", default="Hello Vibe")
-    gen_parser.add_argument("--model", help="Model alias", default="gpt-4")
+    gen_parser.add_argument("--model", help="Model alias", default="default")
     
     # Budget Command (V0.5.0)
     budget_parser = subparsers.add_parser("budget", help="Budget & Reporting")

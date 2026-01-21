@@ -1,12 +1,55 @@
+# User's local credentials
+# Copy this file to config.yaml and fill in your API keys
 api_keys:
+  # Google Gemini
   google: "YOUR_GEMINI_API_KEY"
-  dashscope: "YOUR_DASHSCOPE_API_KEY"
+  
+  # OpenAI
   openai: "YOUR_OPENAI_API_KEY"
+  
+  # DashScope (Qwen) - Region-specific keys
+  # SDK auto-selects based on bypass_proxy config:
+  #   - dashscope in bypass_proxy list → uses dashscope_cn (cheaper CN pricing)
+  #   - dashscope NOT in bypass_proxy → uses dashscope_intl (via proxy to INTL)
+  dashscope_cn: "YOUR_DASHSCOPE_CN_KEY"    # Beijing endpoint key (cheaper: ~0.4/1.2 per 1M tokens)
+  dashscope_intl: "YOUR_DASHSCOPE_INTL_KEY" # Singapore endpoint key
+  dashscope: ""  # Legacy fallback (deprecated, use region-specific keys above)
+  
+  # Volcengine (火山引擎 Ark)
+  volcengine: "YOUR_VOLCENGINE_ARK_KEY"
 
+# User's Endpoints (Optional - for custom API endpoints)
+endpoints:
+  # Example: Official OpenAI API
+  # - name: "official-api"
+  #   url: "https://api.openai.com/v1"
+  #   region: "us"
+  
+  # Example: Local proxy
+  # - name: "local-proxy"
+  #   url: "http://localhost:8080"
+  #   region: "local"
+  
+  # Example: Qwen China endpoint
+  # - name: "qwen-cn"
+  #   url: "https://dashscope.aliyuncs.com/api/v1"
+  #   region: "cn"
+  
+  # Example: Qwen Singapore endpoint
+  # - name: "qwen-sg"
+  #   url: "https://dashscope-intl.aliyuncs.com/compatible-mode/v1"
+  #   region: "sg"
+  
+  # Example: Volcengine custom endpoint
+  # - name: "volcengine"
+  #   url: "https://ark.cn-beijing.volces.com/api/v3"
+  #   region: "cn-beijing"
+
+# Personal Budget (USD per day)
 daily_spend_limit: 1.0
 
+# Personal model overrides (empty by default)
 personal_model_overrides: {}
 
+# Personal routing policies (empty by default)
 personal_routing_policies: []
-
-endpoints: []

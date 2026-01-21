@@ -164,8 +164,14 @@ class LLMClient:
         api_key = self.config.api_keys.get(provider_name)
         if not api_key and provider_name not in ["echo"]:
             raise ConfigurationError(
-                f"Missing API key for provider '{provider_name}'. "
-                f"Please add 'api_keys.{provider_name}' to your config.yaml."
+                f"Missing API key for provider '{provider_name}'.\n"
+                f"  Tip 1: Add 'api_keys.{provider_name}' to your config.yaml.\n"
+                f"  Tip 2: If using the 'default' model, you can override it in config.yaml:\n"
+                f"         personal_model_overrides:\n"
+                f"           default:\n"
+                f"             name: default\n"
+                f"             provider: {provider_name} # Change to your preferred provider (e.g. dashscope)\n"
+                f"             model_id: qwen-plus   # Change to your preferred model"
             )
             
         # 2. Pre-check Budget & Rate Limits
